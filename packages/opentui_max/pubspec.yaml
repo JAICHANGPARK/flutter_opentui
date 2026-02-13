@@ -1,0 +1,23 @@
+name: opentui_max
+description: Maximum-compatibility pure Dart port surface for OpenTUI with core/react/solid/web layers.
+version: 0.1.0
+homepage: https://github.com/jaichang/flutter_opentui
+repository: https://github.com/jaichang/flutter_opentui
+issue_tracker: https://github.com/jaichang/flutter_opentui/issues
+topics:
+  - tui
+  - terminal
+  - flutter
+
+environment:
+  sdk: ^3.11.0
+
+resolution: workspace
+
+dependencies:
+  meta: ^1.17.0
+
+dev_dependencies:
+  lints: ^5.1.1
+  test: ^1.28.0
+  yaml: ^3.1.3

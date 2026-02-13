@@ -1,0 +1,42 @@
+name: OpenTUI Max Parity
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'packages/opentui_max/**'
+      - 'ref/opentui/packages/**'
+      - '.github/workflows/opentui_max_parity.yml'
+
+jobs:
+  parity:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Install Melos
+        run: dart pub global activate melos
+
+      - name: Bootstrap
+        run: melos bootstrap
+
+      - name: Regenerate parity manifest
+        working-directory: packages/opentui_max
+        run: dart run tool/generate_parity_manifest.dart
+
+      - name: Ensure parity manifest committed
+        run: git diff --exit-code -- packages/opentui_max/tool/parity_manifest.yaml
+
+      - name: Analyze opentui_max
+        working-directory: packages/opentui_max
+        run: dart analyze .
+
+      - name: Test opentui_max
+        working-directory: packages/opentui_max
+        run: dart test

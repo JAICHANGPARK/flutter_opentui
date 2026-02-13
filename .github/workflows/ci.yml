@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  analyze-and-test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - channel: stable
+            experimental: false
+          - channel: master
+            experimental: true
+    continue-on-error: ${{ matrix.experimental }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Flutter (${{ matrix.channel }})
+        uses: subosito/flutter-action@v2
+        with:
+          channel: ${{ matrix.channel }}
+
+      - name: Versions
+        run: |
+          flutter --version
+          dart --version
+
+      - name: Install Melos
+        run: dart pub global activate melos
+
+      - name: Bootstrap
+        run: melos bootstrap
+
+      - name: Analyze
+        run: melos run analyze
+
+      - name: Test
+        run: melos run test
+
+      - name: Verify native symbols/checksums
+        run: melos run verify:native
+
+      - name: Verify parity manifest
+        run: melos run verify:parity

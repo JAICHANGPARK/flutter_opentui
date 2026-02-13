@@ -1,0 +1,24 @@
+name: opentui_flutter_example
+publish_to: none
+
+environment:
+  sdk: ^3.11.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  opentui: ^0.1.0
+  opentui_flutter:
+    path: ../
+
+dependency_overrides:
+  opentui:
+    path: ../../opentui
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true

@@ -1,0 +1,42 @@
+name: flutter_opentui_workspace
+publish_to: none
+environment:
+  sdk: ^3.11.0
+
+workspace:
+  - packages/opentui
+  - packages/opentui_flutter
+  - packages/opentui_native
+  - packages/opentui_max
+  - examples/dart_cli_counter
+  - examples/flutter_terminal_demo
+
+dev_dependencies:
+  melos: ^7.1.0
+
+melos:
+  scripts:
+    analyze:
+      run: dart run melos run analyze:dart && dart run melos run analyze:flutter
+      description: Analyze all packages and examples.
+    analyze:dart:
+      run: dart run melos exec --scope=opentui --scope=opentui_native --scope=opentui_max --scope=dart_cli_counter -- "dart analyze ."
+      description: Analyze pure Dart packages.
+    analyze:flutter:
+      run: dart run melos exec --concurrency=1 --scope=opentui_flutter --scope=flutter_terminal_demo -- "flutter analyze"
+      description: Analyze Flutter packages.
+    test:
+      run: dart run melos run test:dart && dart run melos run test:flutter
+      description: Run all tests.
+    test:dart:
+      run: dart run melos exec --scope=opentui --scope=opentui_native --scope=opentui_max --scope=dart_cli_counter -- "dart test"
+      description: Run Dart tests.
+    test:flutter:
+      run: dart run melos exec --concurrency=1 --scope=opentui_flutter --scope=flutter_terminal_demo -- "flutter test"
+      description: Run Flutter tests.
+    verify:native:
+      run: dart run melos exec --scope=opentui_native -- "dart run tool/verify_symbols.dart && dart run tool/verify_checksums.dart && dart run tool/verify_platform_coverage.dart"
+      description: Verify native FFI symbol list and prebuilt checksums.
+    verify:parity:
+      run: dart run melos exec --scope=opentui_max -- "dart run tool/generate_parity_manifest.dart"
+      description: Refresh OpenTUI parity manifest from ref snapshot.

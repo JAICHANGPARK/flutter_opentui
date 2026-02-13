@@ -1,0 +1,9 @@
+.dart_tool/
+.packages
+.pub/
+build/
+coverage/
+.flutter-plugins
+.flutter-plugins-dependencies
+.melos_tool/
+**/.DS_Store

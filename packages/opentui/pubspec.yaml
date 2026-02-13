@@ -1,0 +1,22 @@
+name: opentui
+description: A pure Dart terminal UI engine inspired by OpenTUI.
+version: 0.1.0
+homepage: https://github.com/jaichang/flutter_opentui
+repository: https://github.com/jaichang/flutter_opentui
+issue_tracker: https://github.com/jaichang/flutter_opentui/issues
+topics:
+  - tui
+  - terminal
+  - cli
+
+environment:
+  sdk: ^3.11.0
+
+resolution: workspace
+
+dependencies:
+  meta: ^1.12.0
+
+dev_dependencies:
+  lints: ^5.1.1
+  test: ^1.26.0

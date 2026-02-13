@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+<module fileurl="file://$PROJECT_DIR$/examples/dart_cli_counter/melos_dart_cli_counter.iml" filepath="$PROJECT_DIR$/examples/dart_cli_counter/melos_dart_cli_counter.iml"/>
+<module fileurl="file://$PROJECT_DIR$/examples/flutter_terminal_demo/melos_flutter_terminal_demo.iml" filepath="$PROJECT_DIR$/examples/flutter_terminal_demo/melos_flutter_terminal_demo.iml"/>
+<module fileurl="file://$PROJECT_DIR$/packages/opentui/melos_opentui.iml" filepath="$PROJECT_DIR$/packages/opentui/melos_opentui.iml"/>
+<module fileurl="file://$PROJECT_DIR$/packages/opentui_flutter/melos_opentui_flutter.iml" filepath="$PROJECT_DIR$/packages/opentui_flutter/melos_opentui_flutter.iml"/>
+<module fileurl="file://$PROJECT_DIR$/packages/opentui_max/melos_opentui_max.iml" filepath="$PROJECT_DIR$/packages/opentui_max/melos_opentui_max.iml"/>
+<module fileurl="file://$PROJECT_DIR$/packages/opentui_native/melos_opentui_native.iml" filepath="$PROJECT_DIR$/packages/opentui_native/melos_opentui_native.iml"/>
+<module fileurl="file://$PROJECT_DIR$/melos_flutter_opentui_workspace.iml" filepath="$PROJECT_DIR$/melos_flutter_opentui_workspace.iml"/>
+    </modules>
+  </component>
+</project>
