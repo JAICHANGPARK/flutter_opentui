@@ -16,6 +16,13 @@ Monorepo for OpenTUI in Dart and Flutter.
 - `examples/flutter_terminal_demo`: Flutter sample using `flutter_opentui` with touch controls.
 - `examples/flutter_opentui_demo`: compact Flutter sample using `flutter_opentui`.
 
+## Docs
+
+- docs index: [`docs/README.md`](docs/README.md)
+- OpenTUI getting started: [`docs/getting-started.md`](docs/getting-started.md)
+- Flutter getting started: [`docs/flutter/getting-started.md`](docs/flutter/getting-started.md)
+- components guide: [`docs/components/README.md`](docs/components/README.md)
+
 ## Development
 
 ```bash

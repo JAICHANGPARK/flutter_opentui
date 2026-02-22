@@ -1,0 +1,148 @@
+site_name: flutter_opentui
+site_description: OpenTUI for Dart and Flutter documentation
+site_url: https://jaichang.github.io/flutter_opentui/
+repo_url: https://github.com/jaichang/flutter_opentui
+repo_name: jaichang/flutter_opentui
+edit_uri: edit/main/docs/
+
+docs_dir: docs
+
+theme:
+  name: material
+  language: ko
+  logo: assets/opentui-logo.svg
+  favicon: assets/opentui-logo.svg
+  font:
+    text: IBM Plex Sans
+    code: JetBrains Mono
+  features:
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - toc.follow
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+  palette:
+    - scheme: default
+      primary: blue grey
+      accent: light blue
+      toggle:
+        icon: material/weather-night
+        name: 다크 모드로 전환
+    - scheme: slate
+      primary: black
+      accent: cyan
+      toggle:
+        icon: material/weather-sunny
+        name: 라이트 모드로 전환
+
+plugins:
+  - i18n:
+      docs_structure: suffix
+      fallback_to_default: true
+      reconfigure_material: true
+      languages:
+        - locale: ko
+          name: 한국어
+          default: true
+          build: true
+          nav_translations:
+            Home: 홈
+            Getting Started: 시작하기
+            Core Concepts: 코어 개념
+            Overview: 개요
+            Keyboard & Paste: 키보드 및 붙여넣기
+            Constructs: 구성 헬퍼
+            Console Overlay: 콘솔 오버레이
+            Components: 컴포넌트
+            Flutter: 플러터
+            Controller & Input: 컨트롤러 및 입력
+            Parity Checklist: 호환성 체크리스트
+            Summary: 요약
+        - locale: en
+          name: English
+          build: true
+        - locale: ja
+          name: 日本語
+          build: true
+          nav_translations:
+            Home: ホーム
+            Getting Started: はじめに
+            Core Concepts: コアコンセプト
+            Overview: 概要
+            Keyboard & Paste: キーボードと貼り付け
+            Constructs: コンストラクト
+            Console Overlay: コンソールオーバーレイ
+            Components: コンポーネント
+            Flutter: Flutter
+            Controller & Input: コントローラーと入力
+            Parity Checklist: 互換性チェックリスト
+            Summary: サマリー
+        - locale: zh
+          name: 中文
+          build: true
+          nav_translations:
+            Home: 首页
+            Getting Started: 快速开始
+            Core Concepts: 核心概念
+            Overview: 概览
+            Keyboard & Paste: 键盘与粘贴
+            Constructs: 构造器
+            Console Overlay: 控制台覆盖层
+            Components: 组件
+            Flutter: Flutter
+            Controller & Input: 控制器与输入
+            Parity Checklist: 兼容性清单
+            Summary: 概览目录
+  - search
+
+markdown_extensions:
+  - admonition
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.superfences
+  - pymdownx.inlinehilite
+
+extra_css:
+  - stylesheets/extra.css
+
+nav:
+  - Home: README.md
+  - Getting Started: getting-started.md
+  - Core Concepts:
+      - Overview: core-concepts/README.md
+      - Renderer: core-concepts/renderer.md
+      - Layout: core-concepts/layout.md
+      - Keyboard & Paste: core-concepts/keyboard.md
+      - Constructs: core-concepts/constructs.md
+      - Console Overlay: core-concepts/console.md
+  - Components:
+      - Overview: components/README.md
+      - Box: components/box.md
+      - Text: components/text.md
+      - Input: components/input.md
+      - Textarea: components/textarea.md
+      - Select: components/select.md
+      - TabSelect: components/tab-select.md
+      - ASCIIFont: components/ascii-font.md
+      - FrameBuffer: components/frame-buffer.md
+      - Markdown: components/markdown.md
+      - Code: components/code.md
+      - Diff: components/diff.md
+      - LineNumber: components/line-number.md
+      - ScrollBox: components/scrollbox.md
+      - Scrollbar: components/scrollbar.md
+      - Slider: components/slider.md
+  - Flutter:
+      - Overview: flutter/README.md
+      - Getting Started: flutter/getting-started.md
+      - OpenTuiView: flutter/open-tui-view.md
+      - Controller & Input: flutter/controller-input.md
+  - Parity Checklist: OPENTUI_PARITY_CHECKLIST.md
+  - Summary: SUMMARY.md
