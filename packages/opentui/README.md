@@ -1,34 +1,26 @@
 # opentui
 
-`opentui` is the core OpenTUI Dart package: it provides the node model,
-layout/paint engine, frame and buffer primitives, and lightweight renderable
-adapters for building CLI UIs.
+`opentui` is a pure Dart terminal UI engine inspired by OpenTUI. It includes a
+node/render engine, renderables, declarative construct helpers, and a
+`CliRenderer` wrapper for CLI-focused workflows.
 
 ## Features
 
-- ANSI frame diff rendering.
-- Basic row/column/absolute layout with optional `flexGrow`.
-- Focus management and keyboard input.
-- Core nodes/components:
-  - `TuiBox`
-  - `TuiText`
-  - `TuiInput`
-  - `TuiSelect`
-  - `TuiTabSelect`
-  - `TuiAsciiFont`
-  - `TuiFrameBufferNode`
-- Frame/buffer primitives: `TuiFrame`, `OptimizedBuffer`, `RGBA`,
-  `parseColor(...)`.
-- Lightweight renderables:
-  - `BaseRenderable` / `Renderable`
-  - `BoxRenderable`
-  - `TextRenderable`
-  - `InputRenderable`
-  - `SelectRenderable`
-  - `TabSelectRenderable`
-  - `ASCIIFontRenderable`
-  - `FrameBufferRenderable`
-  - `GroupRenderable`
+- ANSI frame diff rendering with `TuiFrame` / `OptimizedBuffer`.
+- Layout engine with `row` / `column` / `absolute`, `flexGrow`,
+  `justify`/`align`, and percent sizing (`widthPercent` / `heightPercent`).
+- Focus management and keyboard input with key metadata (`name`, `sequence`,
+  `meta`, `option`) and paste event support.
+- `CliRenderer` + `createCliRenderer()` with:
+  - theme mode API (`ThemeMode.dark` / `ThemeMode.light` / `null`)
+  - built-in console controller (`toggle`, position, size, entries, listeners)
+- Core components and renderables:
+  - `Box`, `Text`, `Input`, `Textarea`
+  - `Select`, `TabSelect`, `Slider`, `Scrollbar`, `ScrollBox`
+  - `Markdown`, `Code`, `Diff`, `LineNumber`
+  - `ASCIIFont`, `FrameBuffer`
+- Declarative construct helpers from `constructs.dart`:
+  - `Box(...)`, `Text(...)`, `Input(...)`, `Markdown(...)`, etc.
 
 ## Install
 
@@ -36,29 +28,32 @@ adapters for building CLI UIs.
 dart pub add opentui
 ```
 
+## Documentation
+
+- Getting started: [`../../docs/getting-started.md`](../../docs/getting-started.md)
+- Core concepts: [`../../docs/core-concepts`](../../docs/core-concepts)
+- Components: [`../../docs/components`](../../docs/components)
+
 ## Example
 
 ```dart
 import 'package:opentui/opentui.dart';
 
 Future<void> main() async {
-  final adapter = TerminalAdapter();
-  final engine = TuiEngine(
-    inputSource: adapter,
-    outputSink: adapter,
-    viewportWidth: 80,
-    viewportHeight: 24,
+  final renderer = await createCliRenderer(width: 80, height: 24);
+
+  final app = Box(
+    id: 'app',
+    layoutDirection: TuiLayoutDirection.column,
+    padding: 1,
+    children: <BaseRenderable>[
+      Text(content: 'OpenTUI Dart'),
+      Input(id: 'name', placeholder: 'Type here...'),
+      Slider(id: 'volume', width: 20, value: 40),
+    ],
   );
 
-  final root = TuiBox(
-    id: 'root',
-    border: true,
-    layoutDirection: TuiLayoutDirection.column,
-  )
-    ..add(TuiText(id: 'title', text: 'OpenTUI Dart'))
-    ..add(TuiInput(id: 'input', placeholder: 'Type here...'));
-
-  engine.mount(root);
-  engine.render();
+  renderer.mount(app.toNode());
+  renderer.render();
 }
 ```

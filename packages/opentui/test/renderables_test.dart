@@ -55,5 +55,33 @@ void main() {
       final node = renderable.toNode() as TuiSelect;
       expect(node.flexGrow, 3);
     });
+
+    test('instantiate accepts existing renderables and factories', () {
+      final node = Box(id: 'root');
+      final instantiatedExisting = instantiate<BaseRenderable>(node);
+      final instantiatedFactory = instantiate<BoxRenderable>(
+        () => Box(id: 'from-factory'),
+      );
+
+      expect(identical(instantiatedExisting, node), isTrue);
+      expect(instantiatedFactory.id, 'from-factory');
+    });
+
+    test('delegate routes add calls to mapped descendants', () {
+      final delegated = delegate(
+        <String, String>{'add': 'slot'},
+        Box(
+          id: 'root',
+          children: <BaseRenderable>[Group(id: 'slot')],
+        ),
+      );
+
+      delegated.add(Text(id: 'delegated-text', content: 'hello'));
+
+      final slot = delegated.delegatedTarget('add');
+      expect(slot, isNotNull);
+      expect(slot!.id, 'slot');
+      expect(slot.getChildren().single.id, 'delegated-text');
+    });
   });
 }

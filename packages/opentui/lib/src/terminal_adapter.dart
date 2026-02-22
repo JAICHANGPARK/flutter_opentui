@@ -106,23 +106,64 @@ final class TerminalAdapter implements TuiInputSource, TuiOutputSink {
     var index = 0;
 
     while (index < _pendingInput.length) {
+      if (_pendingInput.startsWith('\x1b[200~', index)) {
+        final pasteStart = index + 6;
+        final pasteEnd = _pendingInput.indexOf('\x1b[201~', pasteStart);
+        if (pasteEnd < 0) {
+          break;
+        }
+        final pastedText = _pendingInput.substring(pasteStart, pasteEnd);
+        _keyController.add(
+          TuiKeyEvent.paste(
+            pastedText,
+            sequence: _pendingInput.substring(index, pasteEnd + 6),
+          ),
+        );
+        index = pasteEnd + 6;
+        continue;
+      }
+
       if (_pendingInput.startsWith('\x1b[A', index)) {
-        _keyController.add(const TuiKeyEvent.special(TuiSpecialKey.arrowUp));
+        _keyController.add(
+          const TuiKeyEvent.special(
+            TuiSpecialKey.arrowUp,
+            name: 'up',
+            sequence: '\x1b[A',
+          ),
+        );
         index += 3;
         continue;
       }
       if (_pendingInput.startsWith('\x1b[B', index)) {
-        _keyController.add(const TuiKeyEvent.special(TuiSpecialKey.arrowDown));
+        _keyController.add(
+          const TuiKeyEvent.special(
+            TuiSpecialKey.arrowDown,
+            name: 'down',
+            sequence: '\x1b[B',
+          ),
+        );
         index += 3;
         continue;
       }
       if (_pendingInput.startsWith('\x1b[C', index)) {
-        _keyController.add(const TuiKeyEvent.special(TuiSpecialKey.arrowRight));
+        _keyController.add(
+          const TuiKeyEvent.special(
+            TuiSpecialKey.arrowRight,
+            name: 'right',
+            sequence: '\x1b[C',
+          ),
+        );
         index += 3;
         continue;
       }
       if (_pendingInput.startsWith('\x1b[D', index)) {
-        _keyController.add(const TuiKeyEvent.special(TuiSpecialKey.arrowLeft));
+        _keyController.add(
+          const TuiKeyEvent.special(
+            TuiSpecialKey.arrowLeft,
+            name: 'left',
+            sequence: '\x1b[D',
+          ),
+        );
         index += 3;
         continue;
       }
@@ -132,40 +173,109 @@ final class TerminalAdapter implements TuiInputSource, TuiOutputSink {
         if (index == _pendingInput.length - 1) {
           break;
         }
-        _keyController.add(const TuiKeyEvent.special(TuiSpecialKey.escape));
+        final nextCodeUnit = _pendingInput.codeUnitAt(index + 1);
+        if (nextCodeUnit >= 32 && nextCodeUnit <= 126) {
+          final character = String.fromCharCode(nextCodeUnit);
+          _keyController.add(
+            TuiKeyEvent.character(
+              character,
+              alt: true,
+              meta: true,
+              option: true,
+              shift: _isUpperAlpha(character),
+              name: _characterName(character),
+              sequence: _pendingInput.substring(index, index + 2),
+            ),
+          );
+          index += 2;
+          continue;
+        }
+        _keyController.add(
+          const TuiKeyEvent.special(
+            TuiSpecialKey.escape,
+            name: 'escape',
+            sequence: '\x1b',
+          ),
+        );
         index += 1;
         continue;
       }
       if (codeUnit == 9) {
-        _keyController.add(const TuiKeyEvent.special(TuiSpecialKey.tab));
+        _keyController.add(
+          const TuiKeyEvent.special(
+            TuiSpecialKey.tab,
+            name: 'tab',
+            sequence: '\t',
+          ),
+        );
         index += 1;
         continue;
       }
       if (codeUnit == 13 || codeUnit == 10) {
-        _keyController.add(const TuiKeyEvent.special(TuiSpecialKey.enter));
+        _keyController.add(
+          const TuiKeyEvent.special(
+            TuiSpecialKey.enter,
+            name: 'enter',
+            sequence: '\n',
+          ),
+        );
         index += 1;
         continue;
       }
       if (codeUnit == 127 || codeUnit == 8) {
-        _keyController.add(const TuiKeyEvent.special(TuiSpecialKey.backspace));
+        _keyController.add(
+          const TuiKeyEvent.special(
+            TuiSpecialKey.backspace,
+            name: 'backspace',
+            sequence: '\x7f',
+          ),
+        );
         index += 1;
         continue;
       }
       if (codeUnit == 3) {
-        _keyController.add(const TuiKeyEvent.special(TuiSpecialKey.ctrlC));
+        _keyController.add(
+          const TuiKeyEvent.special(
+            TuiSpecialKey.ctrlC,
+            ctrl: true,
+            name: 'c',
+            sequence: '\x03',
+          ),
+        );
         index += 1;
         continue;
       }
 
       if (codeUnit >= 32) {
+        final character = String.fromCharCode(codeUnit);
         _keyController.add(
-          TuiKeyEvent.character(String.fromCharCode(codeUnit)),
+          TuiKeyEvent.character(
+            character,
+            shift: _isUpperAlpha(character),
+            name: _characterName(character),
+            sequence: character,
+          ),
         );
       }
       index += 1;
     }
 
     _pendingInput = _pendingInput.substring(index);
+  }
+
+  bool _isUpperAlpha(String value) {
+    if (value.length != 1) {
+      return false;
+    }
+    final code = value.codeUnitAt(0);
+    return code >= 65 && code <= 90;
+  }
+
+  String _characterName(String character) {
+    if (character.length != 1) {
+      return character;
+    }
+    return character.toLowerCase();
   }
 
   Future<void> _flushIfPossible() async {

@@ -26,3 +26,10 @@ import 'package:opentui_flutter/opentui_flutter.dart';
 ```
 
 but new development should target `flutter_opentui`.
+
+## API Surface
+
+This shim re-exports the full `flutter_opentui` API, including:
+- `OpenTuiView`, `OpenTuiController`, `FlutterInputSource`, `FlutterOutputSink`
+- Core `opentui` nodes/components (`TuiTabSelect`, `TuiAsciiFont`, `TuiFrameBufferNode`, etc.)
+- New Flutter input helpers (`sendSpecialKey`, `sendCharacter`, `sendPaste`) and key metadata dispatch support

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:opentui/opentui.dart';
 
+import 'flutter_input_source.dart';
 import 'opentui_controller.dart';
 
 final class OpenTuiView extends StatefulWidget {
@@ -132,18 +133,46 @@ final class _OpenTuiViewState extends State<OpenTuiView> {
   }
 
   KeyEventResult _onKeyEvent(FocusNode node, KeyEvent event) {
-    if (event is! KeyDownEvent) {
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
       return KeyEventResult.ignored;
     }
 
-    final special = _mapSpecialKey(event.logicalKey);
     final ctrl = HardwareKeyboard.instance.isControlPressed;
     final alt = HardwareKeyboard.instance.isAltPressed;
+    final meta = HardwareKeyboard.instance.isMetaPressed;
     final shift = HardwareKeyboard.instance.isShiftPressed;
+    final metadata = FlutterKeyMetadata(
+      character: event.character,
+      logicalKeyLabel: event.logicalKey.keyLabel,
+      logicalKeyId: event.logicalKey.keyId,
+      physicalKeyId: event.physicalKey.usbHidUsage,
+      physicalKeyDebugName: event.physicalKey.debugName,
+      isRepeat: event is KeyRepeatEvent,
+    );
+    final special = _mapSpecialKey(event.logicalKey);
 
     if (special != null) {
-      widget.controller.sendKeyEvent(
-        TuiKeyEvent.special(special, ctrl: ctrl, alt: alt, shift: shift),
+      widget.controller.sendSpecialKey(
+        special,
+        ctrl: ctrl,
+        alt: alt,
+        shift: shift,
+        meta: meta,
+        option: alt,
+        metadata: metadata,
+      );
+      return KeyEventResult.handled;
+    }
+
+    if (ctrl && !alt && event.logicalKey == LogicalKeyboardKey.keyC) {
+      widget.controller.sendSpecialKey(
+        TuiSpecialKey.ctrlC,
+        ctrl: true,
+        alt: alt,
+        shift: shift,
+        meta: meta,
+        option: alt,
+        metadata: metadata,
       );
       return KeyEventResult.handled;
     }
@@ -152,8 +181,27 @@ final class _OpenTuiViewState extends State<OpenTuiView> {
     if (character != null &&
         character.isNotEmpty &&
         !_isControlCharacter(character)) {
-      widget.controller.sendKeyEvent(
-        TuiKeyEvent.character(character, ctrl: ctrl, alt: alt, shift: shift),
+      if (character.runes.length > 1) {
+        widget.controller.sendPaste(
+          character,
+          ctrl: ctrl,
+          alt: alt,
+          shift: shift,
+          meta: meta,
+          option: alt,
+          metadata: metadata,
+        );
+        return KeyEventResult.handled;
+      }
+
+      widget.controller.sendCharacter(
+        character,
+        ctrl: ctrl,
+        alt: alt,
+        shift: shift,
+        meta: meta,
+        option: alt,
+        metadata: metadata,
       );
       return KeyEventResult.handled;
     }

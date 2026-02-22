@@ -1,5 +1,8 @@
 export 'src/ansi_renderer.dart';
 export 'src/buffer.dart';
+export 'src/cli_renderer.dart';
+export 'src/console.dart';
+export 'src/constructs.dart';
 export 'src/engine.dart';
 export 'src/events.dart';
 export 'src/frame.dart';

@@ -2,6 +2,14 @@
 
 Flutter example using `flutter_opentui`.
 
+Showcases:
+- `TuiAsciiFont`
+- `TuiTabSelect`
+- `OpenTuiScrollBoxRenderable` (ScrollBox-style clipping)
+- `TuiFrameBufferNode`
+- `TuiInput` / `TuiSelect`
+- Touch helpers via `sendSpecialKey`, `sendCharacter`, and `sendPaste`
+
 ## Run
 
 ```bash

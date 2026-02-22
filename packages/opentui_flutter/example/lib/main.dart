@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:opentui_flutter/opentui_flutter.dart';
+import 'package:opentui_flutter/opentui_flutter.dart' hide Text;
 
 void main() {
   runApp(const OpenTuiExampleApp());
