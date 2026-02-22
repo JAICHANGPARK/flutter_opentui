@@ -1,6 +1,150 @@
 import 'package:meta/meta.dart';
 
 @immutable
+final class RGBA {
+  const RGBA(this.r, this.g, this.b, [this.a = 255])
+    : assert(r >= 0 && r <= 255),
+      assert(g >= 0 && g <= 255),
+      assert(b >= 0 && b <= 255),
+      assert(a >= 0 && a <= 255);
+
+  final int r;
+  final int g;
+  final int b;
+  final int a;
+
+  TuiColor toTuiColor() => TuiColor(r, g, b);
+
+  static RGBA fromTuiColor(TuiColor color, {int a = 255}) {
+    return RGBA(color.r, color.g, color.b, a);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) {
+      return true;
+    }
+    return other is RGBA &&
+        other.r == r &&
+        other.g == g &&
+        other.b == b &&
+        other.a == a;
+  }
+
+  @override
+  int get hashCode => Object.hash(r, g, b, a);
+}
+
+TuiColor? parseColor(Object? color) {
+  if (color == null) {
+    return null;
+  }
+  if (color is TuiColor) {
+    return color;
+  }
+  if (color is RGBA) {
+    return color.toTuiColor();
+  }
+  if (color is int) {
+    final value = color & 0xFFFFFFFF;
+    return TuiColor((value >> 16) & 0xFF, (value >> 8) & 0xFF, value & 0xFF);
+  }
+  if (color is String) {
+    final value = color.trim().toLowerCase();
+    if (value.startsWith('#')) {
+      return _parseHexColor(value);
+    }
+    final rgbMatch = RegExp(
+      r'^rgb\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*\)$',
+    ).firstMatch(value);
+    if (rgbMatch != null) {
+      final r = int.parse(rgbMatch.group(1)!);
+      final g = int.parse(rgbMatch.group(2)!);
+      final b = int.parse(rgbMatch.group(3)!);
+      if (_isChannel(r) && _isChannel(g) && _isChannel(b)) {
+        return TuiColor(r, g, b);
+      }
+    }
+
+    final rgbaMatch = RegExp(
+      r'^rgba\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*([0-9]*\.?[0-9]+)\s*\)$',
+    ).firstMatch(value);
+    if (rgbaMatch != null) {
+      final r = int.parse(rgbaMatch.group(1)!);
+      final g = int.parse(rgbaMatch.group(2)!);
+      final b = int.parse(rgbaMatch.group(3)!);
+      if (_isChannel(r) && _isChannel(g) && _isChannel(b)) {
+        return TuiColor(r, g, b);
+      }
+    }
+
+    return _namedColors[value];
+  }
+  if (color is List<Object?> && color.length >= 3) {
+    final r = _toChannel(color[0]);
+    final g = _toChannel(color[1]);
+    final b = _toChannel(color[2]);
+    if (r != null && g != null && b != null) {
+      return TuiColor(r, g, b);
+    }
+  }
+  return null;
+}
+
+const Map<String, TuiColor> _namedColors = <String, TuiColor>{
+  'white': TuiColor.white,
+  'black': TuiColor.black,
+  'green': TuiColor.green,
+  'cyan': TuiColor.cyan,
+};
+
+TuiColor? _parseHexColor(String value) {
+  if (value.length == 4) {
+    final rHex = '${value.substring(1, 2)}${value.substring(1, 2)}';
+    final gHex = '${value.substring(2, 3)}${value.substring(2, 3)}';
+    final bHex = '${value.substring(3, 4)}${value.substring(3, 4)}';
+    final r = int.tryParse(rHex, radix: 16);
+    final g = int.tryParse(gHex, radix: 16);
+    final b = int.tryParse(bHex, radix: 16);
+    if (r != null && g != null && b != null) {
+      return TuiColor(r, g, b);
+    }
+    return null;
+  }
+  if (value.length == 7) {
+    final r = int.tryParse(value.substring(1, 3), radix: 16);
+    final g = int.tryParse(value.substring(3, 5), radix: 16);
+    final b = int.tryParse(value.substring(5, 7), radix: 16);
+    if (r != null && g != null && b != null) {
+      return TuiColor(r, g, b);
+    }
+    return null;
+  }
+  if (value.length == 9) {
+    final r = int.tryParse(value.substring(1, 3), radix: 16);
+    final g = int.tryParse(value.substring(3, 5), radix: 16);
+    final b = int.tryParse(value.substring(5, 7), radix: 16);
+    if (r != null && g != null && b != null) {
+      return TuiColor(r, g, b);
+    }
+  }
+  return null;
+}
+
+bool _isChannel(int value) => value >= 0 && value <= 255;
+
+int? _toChannel(Object? input) {
+  if (input is int) {
+    return _isChannel(input) ? input : null;
+  }
+  if (input is double) {
+    final rounded = input.round();
+    return _isChannel(rounded) ? rounded : null;
+  }
+  return null;
+}
+
+@immutable
 final class TuiColor {
   const TuiColor(this.r, this.g, this.b)
     : assert(r >= 0 && r <= 255),

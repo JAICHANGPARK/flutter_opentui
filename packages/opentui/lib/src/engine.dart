@@ -244,30 +244,55 @@ final class TuiEngine {
     final fixedWidth = children
         .where((node) => node.width != null)
         .fold<int>(0, (sum, node) => sum + node.width!);
-    final flexCount = children.where((node) => node.width == null).length;
     final freeWidth = (bounds.width - fixedWidth)
         .clamp(0, bounds.width)
         .toInt();
-    final flexWidth = flexCount == 0 ? 0 : freeWidth ~/ flexCount;
-
-    var cursorX = bounds.x;
-    var flexAssigned = 0;
-
+    final flexIndices = <int>[];
+    var totalFlexGrow = 0.0;
     for (var i = 0; i < children.length; i++) {
-      final child = children[i];
-      final isLast = i == children.length - 1;
+      if (children[i].width == null) {
+        flexIndices.add(i);
+        totalFlexGrow += children[i].flexGrow <= 0 ? 0 : children[i].flexGrow;
+      }
+    }
 
-      final width =
-          child.width ??
-          (isLast
-              ? freeWidth - flexAssigned
-              : flexWidth
-                    .clamp(0, bounds.width - (cursorX - bounds.x))
-                    .toInt());
-      if (child.width == null) {
+    final assignedWidths = List<int>.filled(
+      children.length,
+      0,
+      growable: false,
+    );
+    if (flexIndices.isNotEmpty) {
+      final resolvedFlexGrow = totalFlexGrow <= 0
+          ? List<double>.filled(flexIndices.length, 1.0, growable: false)
+          : flexIndices
+                .map((index) {
+                  final grow = children[index].flexGrow;
+                  return grow <= 0 ? 0.0 : grow;
+                })
+                .toList(growable: false);
+      final flexGrowTotal = totalFlexGrow <= 0
+          ? flexIndices.length.toDouble()
+          : totalFlexGrow;
+
+      var flexAssigned = 0;
+      for (var i = 0; i < flexIndices.length; i++) {
+        final childIndex = flexIndices[i];
+        final remaining = freeWidth - flexAssigned;
+        final width = i == flexIndices.length - 1
+            ? remaining
+            : ((freeWidth * resolvedFlexGrow[i]) / flexGrowTotal)
+                  .floor()
+                  .clamp(0, remaining)
+                  .toInt();
+        assignedWidths[childIndex] = width;
         flexAssigned += width;
       }
+    }
 
+    var cursorX = bounds.x;
+    for (var i = 0; i < children.length; i++) {
+      final child = children[i];
+      final width = child.width ?? assignedWidths[i];
       final childY = bounds.y + (child.top ?? 0);
       final childHeight = child.height ?? (bounds.height - (child.top ?? 0));
       final clamped = _clampRect(
@@ -290,30 +315,55 @@ final class TuiEngine {
     final fixedHeight = children
         .where((node) => node.height != null)
         .fold<int>(0, (sum, node) => sum + node.height!);
-    final flexCount = children.where((node) => node.height == null).length;
     final freeHeight = (bounds.height - fixedHeight)
         .clamp(0, bounds.height)
         .toInt();
-    final flexHeight = flexCount == 0 ? 0 : freeHeight ~/ flexCount;
-
-    var cursorY = bounds.y;
-    var flexAssigned = 0;
-
+    final flexIndices = <int>[];
+    var totalFlexGrow = 0.0;
     for (var i = 0; i < children.length; i++) {
-      final child = children[i];
-      final isLast = i == children.length - 1;
+      if (children[i].height == null) {
+        flexIndices.add(i);
+        totalFlexGrow += children[i].flexGrow <= 0 ? 0 : children[i].flexGrow;
+      }
+    }
 
-      final height =
-          child.height ??
-          (isLast
-              ? freeHeight - flexAssigned
-              : flexHeight
-                    .clamp(0, bounds.height - (cursorY - bounds.y))
-                    .toInt());
-      if (child.height == null) {
+    final assignedHeights = List<int>.filled(
+      children.length,
+      0,
+      growable: false,
+    );
+    if (flexIndices.isNotEmpty) {
+      final resolvedFlexGrow = totalFlexGrow <= 0
+          ? List<double>.filled(flexIndices.length, 1.0, growable: false)
+          : flexIndices
+                .map((index) {
+                  final grow = children[index].flexGrow;
+                  return grow <= 0 ? 0.0 : grow;
+                })
+                .toList(growable: false);
+      final flexGrowTotal = totalFlexGrow <= 0
+          ? flexIndices.length.toDouble()
+          : totalFlexGrow;
+
+      var flexAssigned = 0;
+      for (var i = 0; i < flexIndices.length; i++) {
+        final childIndex = flexIndices[i];
+        final remaining = freeHeight - flexAssigned;
+        final height = i == flexIndices.length - 1
+            ? remaining
+            : ((freeHeight * resolvedFlexGrow[i]) / flexGrowTotal)
+                  .floor()
+                  .clamp(0, remaining)
+                  .toInt();
+        assignedHeights[childIndex] = height;
         flexAssigned += height;
       }
+    }
 
+    var cursorY = bounds.y;
+    for (var i = 0; i < children.length; i++) {
+      final child = children[i];
+      final height = child.height ?? assignedHeights[i];
       final childX = bounds.x + (child.left ?? 0);
       final childWidth = child.width ?? (bounds.width - (child.left ?? 0));
       final clamped = _clampRect(
@@ -331,6 +381,15 @@ final class TuiEngine {
   int _defaultNodeHeight(TuiNode node) {
     if (node is TuiSelect) {
       return node.options.length;
+    }
+    if (node is TuiTabSelect) {
+      return 1;
+    }
+    if (node is TuiAsciiFont) {
+      return TuiAsciiFont.defaultGlyphHeight;
+    }
+    if (node is TuiFrameBufferNode) {
+      return node.buffer.height;
     }
     return 1;
   }
@@ -370,6 +429,12 @@ final class TuiEngine {
         _paintInput(input, bounds, frame);
       case TuiSelect select:
         _paintSelect(select, bounds, frame);
+      case TuiTabSelect tabSelect:
+        _paintTabSelect(tabSelect, bounds, frame);
+      case TuiAsciiFont asciiFont:
+        _paintAsciiFont(asciiFont, bounds, frame);
+      case TuiFrameBufferNode frameBuffer:
+        _paintFrameBuffer(frameBuffer, bounds, frame);
     }
 
     for (final child in node.children) {
@@ -502,6 +567,178 @@ final class TuiEngine {
       );
     }
   }
+
+  void _paintTabSelect(TuiTabSelect tabSelect, TuiRect bounds, TuiFrame frame) {
+    frame.fillRect(
+      bounds.x,
+      bounds.y,
+      bounds.width,
+      1,
+      fill: TuiCell(char: ' ', style: tabSelect.style),
+    );
+
+    var cursorX = bounds.x;
+    final endX = bounds.x + bounds.width;
+    for (var i = 0; i < tabSelect.options.length; i++) {
+      if (cursorX >= endX) {
+        break;
+      }
+      if (i > 0 && tabSelect.separator.isNotEmpty) {
+        final separatorSpace = endX - cursorX;
+        if (separatorSpace <= 0) {
+          break;
+        }
+        frame.drawText(
+          cursorX,
+          bounds.y,
+          tabSelect.separator,
+          style: tabSelect.style,
+          maxWidth: separatorSpace,
+        );
+        cursorX += tabSelect.separator.length;
+      }
+
+      if (cursorX >= endX) {
+        break;
+      }
+      final label = ' ${tabSelect.options[i]} ';
+      final style = i == tabSelect.selectedIndex
+          ? tabSelect.selectedStyle
+          : tabSelect.style;
+      final labelSpace = endX - cursorX;
+      if (labelSpace <= 0) {
+        break;
+      }
+      frame.drawText(
+        cursorX,
+        bounds.y,
+        label,
+        style: style,
+        maxWidth: labelSpace,
+      );
+      cursorX += label.length;
+    }
+  }
+
+  void _paintAsciiFont(TuiAsciiFont asciiFont, TuiRect bounds, TuiFrame frame) {
+    final lines = _asciiFontLines(asciiFont);
+    final visibleRows = lines.length < bounds.height
+        ? lines.length
+        : bounds.height;
+
+    for (var i = 0; i < visibleRows; i++) {
+      frame.drawText(
+        bounds.x,
+        bounds.y + i,
+        lines[i],
+        style: asciiFont.style,
+        maxWidth: bounds.width,
+      );
+    }
+  }
+
+  void _paintFrameBuffer(
+    TuiFrameBufferNode frameBuffer,
+    TuiRect bounds,
+    TuiFrame frame,
+  ) {
+    final visibleWidth = bounds.width < frameBuffer.buffer.width
+        ? bounds.width
+        : frameBuffer.buffer.width;
+    final visibleHeight = bounds.height < frameBuffer.buffer.height
+        ? bounds.height
+        : frameBuffer.buffer.height;
+
+    for (var y = 0; y < visibleHeight; y++) {
+      for (var x = 0; x < visibleWidth; x++) {
+        final cell = frameBuffer.buffer.cellAt(x, y);
+        if (frameBuffer.transparent && cell.char == ' ') {
+          continue;
+        }
+        frame.setCell(bounds.x + x, bounds.y + y, cell);
+      }
+    }
+  }
+
+  List<String> _asciiFontLines(TuiAsciiFont asciiFont) {
+    final runes = asciiFont.text.runes.toList(growable: false);
+    final glyphHeight = TuiAsciiFont.defaultGlyphHeight;
+    final lineBuffers = List<StringBuffer>.generate(
+      glyphHeight,
+      (_) => StringBuffer(),
+      growable: false,
+    );
+
+    for (var index = 0; index < runes.length; index++) {
+      final char = String.fromCharCode(runes[index]).toUpperCase();
+      final glyph = _asciiGlyphs[char] ?? _fallbackGlyph(char);
+
+      for (var row = 0; row < glyphHeight; row++) {
+        if (index > 0 && asciiFont.letterSpacing > 0) {
+          lineBuffers[row].write(''.padLeft(asciiFont.letterSpacing));
+        }
+        lineBuffers[row].write(glyph[row]);
+      }
+    }
+
+    return lineBuffers.map((line) => line.toString()).toList(growable: false);
+  }
+
+  List<String> _fallbackGlyph(String char) {
+    if (char.trim().isEmpty) {
+      return const <String>['   ', '   ', '   ', '   ', '   '];
+    }
+    final rune = char.runes.isEmpty
+        ? '?'
+        : String.fromCharCode(char.runes.first);
+    return <String>[
+      ' $rune ',
+      '$rune $rune',
+      '$rune$rune$rune',
+      '$rune $rune',
+      '$rune $rune',
+    ];
+  }
+
+  static const Map<String, List<String>> _asciiGlyphs = <String, List<String>>{
+    'A': <String>[' /\\ ', '/__\\', '|  |', '|  |', '    '],
+    'B': <String>['|~~\\', '|__/ ', '|~~\\', '|__/ ', '    '],
+    'C': <String>[' /~~', '|   ', '|   ', ' \\__', '    '],
+    'D': <String>['|~~\\', '|  |', '|  |', '|__/', '    '],
+    'E': <String>['|~~~', '|__ ', '|   ', '|___', '    '],
+    'F': <String>['|~~~', '|__ ', '|   ', '|   ', '    '],
+    'G': <String>[' /~~', '| __', '|  |', ' \\_|', '    '],
+    'H': <String>['|  |', '|__|', '|  |', '|  |', '    '],
+    'I': <String>['-|-', ' | ', ' | ', '-|-', '   '],
+    'J': <String>['  |', '  |', '| |', ' \\|', '   '],
+    'K': <String>['| /', '|/ ', '|\\ ', '| \\', '   '],
+    'L': <String>['|   ', '|   ', '|   ', '|___', '    '],
+    'M': <String>['|\\/|', '|  |', '|  |', '|  |', '    '],
+    'N': <String>['|\\ |', '| \\|', '|  |', '|  |', '    '],
+    'O': <String>[' /\\ ', '|  |', '|  |', ' \\/ ', '    '],
+    'P': <String>['|~~\\', '|__/', '|   ', '|   ', '    '],
+    'Q': <String>[' /\\ ', '|  |', '| \\\\', ' \\/\\', '    '],
+    'R': <String>['|~~\\', '|__/', '| \\ ', '|  \\', '    '],
+    'S': <String>[' /~~', '(__ ', ' __)', '~~/ ', '    '],
+    'T': <String>['~~~', ' | ', ' | ', ' | ', '   '],
+    'U': <String>['|  |', '|  |', '|  |', ' \\/ ', '    '],
+    'V': <String>['|  |', '|  |', ' \\/ ', '  V ', '    '],
+    'W': <String>['|  |', '|  |', '|/\\|', '|  |', '    '],
+    'X': <String>['\\ /', ' X ', '/ \\', '   ', '   '],
+    'Y': <String>['\\ /', ' Y ', ' | ', ' | ', '   '],
+    'Z': <String>['~~~/', '  / ', ' /  ', '/___', '    '],
+    '0': <String>[' /\\ ', '/  \\', '|  |', ' \\_/ ', '    '],
+    '1': <String>[' /|', '  |', '  |', '__|', '   '],
+    '2': <String>['__/ ', '  / ', ' /  ', '/__ ', '    '],
+    '3': <String>['__\\ ', ' _/ ', '  \\ ', '__/ ', '    '],
+    '4': <String>['|  |', '|__|', '   |', '   |', '    '],
+    '5': <String>['|__ ', '|__ ', '   |', '__/ ', '    '],
+    '6': <String>[' /~ ', '|__ ', '|  |', ' \\_/ ', '    '],
+    '7': <String>['___/', '  / ', ' /  ', '/   ', '    '],
+    '8': <String>[' /\\ ', ' > <', '|  |', ' \\/ ', '    '],
+    '9': <String>[' /\\ ', '|  |', ' \\_|', '  / ', '    '],
+    ' ': <String>['   ', '   ', '   ', '   ', '   '],
+  };
 
   void _assertNotDisposed() {
     if (_isDisposed) {

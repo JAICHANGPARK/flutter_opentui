@@ -7,11 +7,12 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  opentui: ^0.1.0
   opentui_flutter:
     path: ../
 
 dependency_overrides:
+  flutter_opentui:
+    path: ../../flutter_opentui
   opentui:
     path: ../../opentui
 

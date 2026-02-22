@@ -1,6 +1,6 @@
 # flutter_terminal_demo
 
-Flutter example using `opentui_flutter`.
+Flutter example using `flutter_opentui`.
 
 ## Run
 

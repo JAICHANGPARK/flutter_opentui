@@ -30,6 +30,56 @@ void main() {
       expect(right.layoutBounds?.width, 14);
     });
 
+    test('row layout uses flexGrow weights for flexible children', () {
+      final input = _FakeInput();
+      final output = _MemoryOutput();
+      final engine = TuiEngine(
+        inputSource: input,
+        outputSink: output,
+        viewportWidth: 12,
+        viewportHeight: 5,
+      );
+
+      final left = TuiText(id: 'left', text: 'left', flexGrow: 1);
+      final right = TuiText(id: 'right', text: 'right', flexGrow: 2);
+      final root = TuiBox(id: 'root', layoutDirection: TuiLayoutDirection.row)
+        ..add(left)
+        ..add(right);
+
+      engine.mount(root);
+      engine.render();
+
+      expect(left.layoutBounds?.width, 4);
+      expect(right.layoutBounds?.width, 8);
+    });
+
+    test('column layout uses flexGrow weights for flexible children', () {
+      final input = _FakeInput();
+      final output = _MemoryOutput();
+      final engine = TuiEngine(
+        inputSource: input,
+        outputSink: output,
+        viewportWidth: 12,
+        viewportHeight: 9,
+      );
+
+      final top = TuiText(id: 'top', text: 'top', flexGrow: 1);
+      final middle = TuiText(id: 'middle', text: 'middle', flexGrow: 2);
+      final bottom = TuiText(id: 'bottom', text: 'bottom', height: 1);
+      final root =
+          TuiBox(id: 'root', layoutDirection: TuiLayoutDirection.column)
+            ..add(top)
+            ..add(middle)
+            ..add(bottom);
+
+      engine.mount(root);
+      engine.render();
+
+      expect(top.layoutBounds?.height, 2);
+      expect(middle.layoutBounds?.height, 6);
+      expect(bottom.layoutBounds?.height, 1);
+    });
+
     test('absolute layout respects left/top positioning', () {
       final input = _FakeInput();
       final output = _MemoryOutput();

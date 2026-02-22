@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:opentui/opentui.dart';
-import 'package:opentui_flutter/opentui_flutter.dart';
+import 'package:flutter_opentui/flutter_opentui.dart';
 
 void main() {
   runApp(const TerminalDemoApp());

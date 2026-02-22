@@ -1,5 +1,5 @@
 name: opentui_flutter
-description: Flutter plugin and widget adapter for rendering OpenTUI frames.
+description: Compatibility shim that re-exports package:flutter_opentui.
 version: 0.1.0
 homepage: https://github.com/jaichang/flutter_opentui
 repository: https://github.com/jaichang/flutter_opentui
@@ -18,30 +18,9 @@ resolution: workspace
 dependencies:
   flutter:
     sdk: flutter
-  flutter_web_plugins:
-    sdk: flutter
-  opentui: ^0.1.0
-  web: ^1.1.1
+  flutter_opentui: ^0.1.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
-
-flutter:
-  plugin:
-    platforms:
-      android:
-        package: dev.opentui.opentui_flutter
-        pluginClass: OpenTuiFlutterPlugin
-      ios:
-        pluginClass: OpenTuiFlutterPlugin
-      linux:
-        pluginClass: OpenTuiFlutterPlugin
-      macos:
-        pluginClass: OpenTuiFlutterPlugin
-      windows:
-        pluginClass: OpenTuiFlutterPluginCApi
-      web:
-        pluginClass: OpenTuiFlutterWeb
-        fileName: opentui_flutter_web.dart

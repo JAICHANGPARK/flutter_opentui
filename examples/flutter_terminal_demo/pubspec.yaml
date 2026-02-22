@@ -9,8 +9,7 @@ resolution: workspace
 dependencies:
   flutter:
     sdk: flutter
-  opentui: ^0.1.0
-  opentui_flutter: ^0.1.0
+  flutter_opentui: ^0.1.0
 
 dev_dependencies:
   flutter_test:

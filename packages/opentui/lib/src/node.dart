@@ -1,4 +1,5 @@
 import 'events.dart';
+import 'buffer.dart';
 import 'frame.dart';
 
 enum TuiLayoutDirection { row, column, absolute }
@@ -25,13 +26,15 @@ sealed class TuiNode {
     this.left,
     this.top,
     this.focusable = false,
-  });
+    this.flexGrow = 1.0,
+  }) : assert(flexGrow >= 0);
 
   final String id;
   int? width;
   int? height;
   int? left;
   int? top;
+  double flexGrow;
   bool focusable;
   bool focused = false;
 
@@ -63,6 +66,7 @@ final class TuiBox extends TuiNode {
     super.height,
     super.left,
     super.top,
+    super.flexGrow,
     this.layoutDirection = TuiLayoutDirection.column,
     this.border = false,
     this.title,
@@ -87,6 +91,7 @@ final class TuiText extends TuiNode {
     super.height,
     super.left,
     super.top,
+    super.flexGrow,
     this.style = TuiStyle.plain,
   });
 
@@ -103,6 +108,7 @@ final class TuiInput extends TuiNode {
     super.height,
     super.left,
     super.top,
+    super.flexGrow,
     this.style = TuiStyle.plain,
     this.focusedStyle = const TuiStyle(
       foreground: TuiColor.black,
@@ -161,6 +167,7 @@ final class TuiSelect extends TuiNode {
     super.height,
     super.left,
     super.top,
+    super.flexGrow,
     this.style = TuiStyle.plain,
     this.selectedStyle = const TuiStyle(
       foreground: TuiColor.black,
@@ -188,4 +195,83 @@ final class TuiSelect extends TuiNode {
       selectedIndex = (selectedIndex + 1).clamp(0, options.length - 1);
     }
   }
+}
+
+final class TuiTabSelect extends TuiNode {
+  TuiTabSelect({
+    required super.id,
+    required this.options,
+    this.selectedIndex = 0,
+    super.width,
+    super.height,
+    super.left,
+    super.top,
+    super.flexGrow,
+    this.style = TuiStyle.plain,
+    this.selectedStyle = const TuiStyle(
+      foreground: TuiColor.black,
+      background: TuiColor.green,
+      bold: true,
+    ),
+    this.separator = ' | ',
+  }) : super(focusable: true);
+
+  final List<String> options;
+  int selectedIndex;
+  TuiStyle style;
+  TuiStyle selectedStyle;
+  String separator;
+
+  @override
+  void onKey(TuiKeyEvent keyEvent) {
+    final special = keyEvent.special;
+    if (options.isEmpty) {
+      return;
+    }
+    if (special == TuiSpecialKey.arrowLeft ||
+        special == TuiSpecialKey.arrowUp) {
+      selectedIndex = (selectedIndex - 1).clamp(0, options.length - 1);
+      return;
+    }
+    if (special == TuiSpecialKey.arrowRight ||
+        special == TuiSpecialKey.arrowDown) {
+      selectedIndex = (selectedIndex + 1).clamp(0, options.length - 1);
+    }
+  }
+}
+
+final class TuiAsciiFont extends TuiNode {
+  TuiAsciiFont({
+    required super.id,
+    required this.text,
+    super.width,
+    super.height,
+    super.left,
+    super.top,
+    super.flexGrow,
+    this.style = TuiStyle.plain,
+    this.letterSpacing = 1,
+  });
+
+  static const int defaultGlyphHeight = 5;
+
+  String text;
+  TuiStyle style;
+  int letterSpacing;
+}
+
+final class TuiFrameBufferNode extends TuiNode {
+  TuiFrameBufferNode({
+    required super.id,
+    required this.buffer,
+    super.width,
+    super.height,
+    super.left,
+    super.top,
+    super.flexGrow,
+    this.transparent = false,
+  });
+
+  final OptimizedBuffer buffer;
+  bool transparent;
 }

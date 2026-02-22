@@ -16,7 +16,7 @@ scripts:
     run: dart run melos exec --scope=opentui --scope=opentui_native --scope=opentui_max --scope=dart_cli_counter -- "dart analyze ."
     description: Analyze pure Dart packages.
   analyze:flutter:
-    run: dart run melos exec --concurrency=1 --scope=opentui_flutter --scope=flutter_terminal_demo -- "flutter analyze"
+    run: dart run melos exec --concurrency=1 --scope=opentui_flutter --scope=flutter_opentui --scope=flutter_terminal_demo --scope=flutter_opentui_demo -- "flutter analyze"
     description: Analyze Flutter packages.
   test:
     run: dart run melos run test:dart && dart run melos run test:flutter
@@ -31,5 +31,5 @@ scripts:
     run: dart run melos exec --scope=opentui_max -- "dart run tool/generate_parity_manifest.dart"
     description: Refresh OpenTUI parity manifest from ref snapshot.
   test:flutter:
-    run: dart run melos exec --concurrency=1 --scope=opentui_flutter --scope=flutter_terminal_demo -- "flutter test"
+    run: dart run melos exec --concurrency=1 --scope=opentui_flutter --scope=flutter_opentui --scope=flutter_terminal_demo --scope=flutter_opentui_demo -- "flutter test"
     description: Run Flutter tests.

@@ -1,13 +1,34 @@
 # opentui
 
-`opentui` is a pure Dart terminal UI engine for CLI applications.
+`opentui` is the core OpenTUI Dart package: it provides the node model,
+layout/paint engine, frame and buffer primitives, and lightweight renderable
+adapters for building CLI UIs.
 
 ## Features
 
 - ANSI frame diff rendering.
-- Basic row/column/absolute layout.
+- Basic row/column/absolute layout with optional `flexGrow`.
 - Focus management and keyboard input.
-- Primitive components: `TuiText`, `TuiBox`, `TuiInput`, `TuiSelect`.
+- Core nodes/components:
+  - `TuiBox`
+  - `TuiText`
+  - `TuiInput`
+  - `TuiSelect`
+  - `TuiTabSelect`
+  - `TuiAsciiFont`
+  - `TuiFrameBufferNode`
+- Frame/buffer primitives: `TuiFrame`, `OptimizedBuffer`, `RGBA`,
+  `parseColor(...)`.
+- Lightweight renderables:
+  - `BaseRenderable` / `Renderable`
+  - `BoxRenderable`
+  - `TextRenderable`
+  - `InputRenderable`
+  - `SelectRenderable`
+  - `TabSelectRenderable`
+  - `ASCIIFontRenderable`
+  - `FrameBufferRenderable`
+  - `GroupRenderable`
 
 ## Install
 

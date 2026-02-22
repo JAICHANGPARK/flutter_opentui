@@ -1,8 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:opentui/opentui.dart';
-import 'package:opentui_flutter/opentui_flutter.dart';
+import 'package:flutter_opentui/flutter_opentui.dart';
 
 void main() {
   test('controller forwards key events to input source', () async {
