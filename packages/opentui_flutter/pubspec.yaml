@@ -1,6 +1,6 @@
 name: opentui_flutter
 description: Compatibility shim that re-exports package:flutter_opentui.
-version: 0.1.0
+version: 0.2.0
 homepage: https://github.com/jaichang/flutter_opentui
 repository: https://github.com/jaichang/flutter_opentui
 issue_tracker: https://github.com/jaichang/flutter_opentui/issues

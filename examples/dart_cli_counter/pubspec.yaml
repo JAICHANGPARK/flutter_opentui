@@ -7,7 +7,7 @@ environment:
 resolution: workspace
 
 dependencies:
-  opentui: ^0.1.0
+  opentui: ^0.2.0
 
 dev_dependencies:
   lints: ^5.1.1
