@@ -8,6 +8,8 @@ void main() {
     test('new renderables map to node/component types', () {
       final root =
           BoxRenderable(id: 'root', layoutDirection: TuiLayoutDirection.column)
+            ..add(TextNodeRenderable(id: 'text-node', content: 'node'))
+            ..add(TextBufferRenderable(id: 'text-buffer', text: 'buffer'))
             ..add(MarkdownRenderable(id: 'md', markdown: '# Header'))
             ..add(CodeRenderable(id: 'code', code: 'print("ok");'))
             ..add(DiffRenderable(id: 'diff', previous: 'a', next: 'b'))
@@ -24,14 +26,16 @@ void main() {
 
       final node = root.toNode() as TuiBox;
 
-      expect(node.children[0], isA<TuiMarkdown>());
-      expect(node.children[1], isA<TuiCode>());
-      expect(node.children[2], isA<TuiDiff>());
-      expect(node.children[3], isA<TuiLineNumber>());
-      expect(node.children[4], isA<TuiScrollBox>());
-      expect(node.children[5], isA<TuiScrollbar>());
-      expect(node.children[6], isA<TuiSlider>());
-      expect(node.children[7], isA<TuiTextarea>());
+      expect(node.children[0], isA<TuiText>());
+      expect(node.children[1], isA<TuiText>());
+      expect(node.children[2], isA<TuiMarkdown>());
+      expect(node.children[3], isA<TuiCode>());
+      expect(node.children[4], isA<TuiDiff>());
+      expect(node.children[5], isA<TuiLineNumber>());
+      expect(node.children[6], isA<TuiScrollBox>());
+      expect(node.children[7], isA<TuiScrollbar>());
+      expect(node.children[8], isA<TuiSlider>());
+      expect(node.children[9], isA<TuiTextarea>());
     });
 
     test('engine paints minimal output for new component nodes', () {
@@ -138,6 +142,8 @@ void main() {
         layoutDirection: TuiLayoutDirection.column,
         children: <BaseRenderable>[
           Text(id: 'text', content: 'hello'),
+          TextNode(id: 'text-node', text: 'node'),
+          TextBuffer(id: 'text-buffer', text: 'buffered'),
           Markdown(id: 'md', markdown: '# heading'),
           Slider(id: 'slider', width: 8, value: 40),
           Scrollbar(id: 'bar', height: 4),
@@ -146,12 +152,14 @@ void main() {
       );
 
       final children = tree.getChildren();
-      expect(children, hasLength(5));
+      expect(children, hasLength(7));
       expect(children[0], isA<TextRenderable>());
-      expect(children[1], isA<MarkdownRenderable>());
-      expect(children[2], isA<SliderRenderable>());
-      expect(children[3], isA<ScrollbarRenderable>());
-      expect(children[4], isA<TextareaRenderable>());
+      expect(children[1], isA<TextNodeRenderable>());
+      expect(children[2], isA<TextBufferRenderable>());
+      expect(children[3], isA<MarkdownRenderable>());
+      expect(children[4], isA<SliderRenderable>());
+      expect(children[5], isA<ScrollbarRenderable>());
+      expect(children[6], isA<TextareaRenderable>());
     });
   });
 }
@@ -159,11 +167,16 @@ void main() {
 final class _FakeInput implements TuiInputSource {
   final StreamController<TuiKeyEvent> _keyController =
       StreamController<TuiKeyEvent>.broadcast();
+  final StreamController<TuiMouseEvent> _mouseController =
+      StreamController<TuiMouseEvent>.broadcast();
   final StreamController<TuiResizeEvent> _resizeController =
       StreamController<TuiResizeEvent>.broadcast();
 
   @override
   Stream<TuiKeyEvent> get keyEvents => _keyController.stream;
+
+  @override
+  Stream<TuiMouseEvent> get mouseEvents => _mouseController.stream;
 
   @override
   Stream<TuiResizeEvent> get resizeEvents => _resizeController.stream;

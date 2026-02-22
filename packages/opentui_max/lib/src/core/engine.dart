@@ -202,14 +202,16 @@ final class TuiEngine {
       return bounds;
     }
 
-    final borderInset = node.border ? 1 : 0;
     final padding = node.padding;
-    final inset = borderInset + padding;
+    final insetLeft = (node.hasBorderLeft ? 1 : 0) + padding;
+    final insetTop = (node.hasBorderTop ? 1 : 0) + padding;
+    final insetRight = (node.hasBorderRight ? 1 : 0) + padding;
+    final insetBottom = (node.hasBorderBottom ? 1 : 0) + padding;
 
-    final x = bounds.x + inset;
-    final y = bounds.y + inset;
-    final width = bounds.width - (inset * 2);
-    final height = bounds.height - (inset * 2);
+    final x = bounds.x + insetLeft;
+    final y = bounds.y + insetTop;
+    final width = bounds.width - insetLeft - insetRight;
+    final height = bounds.height - insetTop - insetBottom;
 
     return TuiRect(
       x: x,
@@ -386,7 +388,7 @@ final class TuiEngine {
       fill: TuiCell(char: ' ', style: box.style),
     );
 
-    if (!box.border || bounds.width < 2 || bounds.height < 2) {
+    if (!box.hasBorder || bounds.width <= 0 || bounds.height <= 0) {
       return;
     }
 
@@ -394,30 +396,117 @@ final class TuiEngine {
     final right = bounds.x + bounds.width - 1;
     final top = bounds.y;
     final bottom = bounds.y + bounds.height - 1;
+    final chars = box.resolvedBorderChars;
+    final drawTop = box.hasBorderTop;
+    final drawRight = box.hasBorderRight;
+    final drawBottom = box.hasBorderBottom;
+    final drawLeft = box.hasBorderLeft;
 
-    for (var x = left + 1; x < right; x++) {
-      frame.setCell(x, top, TuiCell(char: '-', style: box.borderStyle));
-      frame.setCell(x, bottom, TuiCell(char: '-', style: box.borderStyle));
+    if (drawTop) {
+      for (var x = left; x <= right; x++) {
+        frame.setCell(
+          x,
+          top,
+          TuiCell(char: chars.horizontal, style: box.borderStyle),
+        );
+      }
     }
-    for (var y = top + 1; y < bottom; y++) {
-      frame.setCell(left, y, TuiCell(char: '|', style: box.borderStyle));
-      frame.setCell(right, y, TuiCell(char: '|', style: box.borderStyle));
+    if (drawBottom) {
+      for (var x = left; x <= right; x++) {
+        frame.setCell(
+          x,
+          bottom,
+          TuiCell(char: chars.horizontal, style: box.borderStyle),
+        );
+      }
+    }
+    if (drawLeft) {
+      for (var y = top; y <= bottom; y++) {
+        frame.setCell(
+          left,
+          y,
+          TuiCell(char: chars.vertical, style: box.borderStyle),
+        );
+      }
+    }
+    if (drawRight) {
+      for (var y = top; y <= bottom; y++) {
+        frame.setCell(
+          right,
+          y,
+          TuiCell(char: chars.vertical, style: box.borderStyle),
+        );
+      }
     }
 
-    frame.setCell(left, top, TuiCell(char: '+', style: box.borderStyle));
-    frame.setCell(right, top, TuiCell(char: '+', style: box.borderStyle));
-    frame.setCell(left, bottom, TuiCell(char: '+', style: box.borderStyle));
-    frame.setCell(right, bottom, TuiCell(char: '+', style: box.borderStyle));
+    void paintCorner({
+      required int x,
+      required int y,
+      required bool hasHorizontal,
+      required bool hasVertical,
+      required String corner,
+    }) {
+      if (!hasHorizontal && !hasVertical) {
+        return;
+      }
+      final char = hasHorizontal && hasVertical
+          ? corner
+          : hasHorizontal
+          ? chars.horizontal
+          : chars.vertical;
+      frame.setCell(x, y, TuiCell(char: char, style: box.borderStyle));
+    }
+
+    paintCorner(
+      x: left,
+      y: top,
+      hasHorizontal: drawTop,
+      hasVertical: drawLeft,
+      corner: chars.topLeft,
+    );
+    paintCorner(
+      x: right,
+      y: top,
+      hasHorizontal: drawTop,
+      hasVertical: drawRight,
+      corner: chars.topRight,
+    );
+    paintCorner(
+      x: left,
+      y: bottom,
+      hasHorizontal: drawBottom,
+      hasVertical: drawLeft,
+      corner: chars.bottomLeft,
+    );
+    paintCorner(
+      x: right,
+      y: bottom,
+      hasHorizontal: drawBottom,
+      hasVertical: drawRight,
+      corner: chars.bottomRight,
+    );
 
     final title = box.title;
-    if (title != null && title.isNotEmpty && bounds.width > 4) {
-      frame.drawText(
-        left + 2,
-        top,
-        title,
-        style: box.borderStyle,
-        maxWidth: bounds.width - 4,
-      );
+    if (drawTop && title != null && title.isNotEmpty) {
+      final titleLeft = left + (drawLeft ? 2 : 1);
+      final titleRight = right - (drawRight ? 2 : 1);
+      final maxTitleWidth = titleRight - titleLeft + 1;
+      if (maxTitleWidth > 0) {
+        final renderWidth = title.length.clamp(0, maxTitleWidth).toInt();
+        var titleX = titleLeft;
+        if (box.titleAlignment == TuiTitleAlignment.center) {
+          titleX = titleLeft + ((maxTitleWidth - renderWidth) ~/ 2);
+        } else if (box.titleAlignment == TuiTitleAlignment.right) {
+          titleX = titleRight - renderWidth + 1;
+        }
+        frame.drawText(
+          titleX,
+          top,
+          title,
+          style: box.borderStyle,
+          maxWidth: maxTitleWidth,
+        );
+      }
     }
   }
 

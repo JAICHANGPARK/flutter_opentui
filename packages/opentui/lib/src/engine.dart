@@ -3,6 +3,7 @@ import 'dart:async';
 import 'events.dart';
 import 'frame.dart';
 import 'node.dart';
+import 'selection.dart';
 
 final class TuiEngine {
   TuiEngine({
@@ -12,6 +13,7 @@ final class TuiEngine {
     this.viewportHeight = 24,
   }) {
     _keySubscription = inputSource.keyEvents.listen(_handleKeyEvent);
+    _mouseSubscription = inputSource.mouseEvents.listen(_handleMouseEvent);
     _resizeSubscription = inputSource.resizeEvents.listen(_handleResizeEvent);
   }
 
@@ -24,12 +26,20 @@ final class TuiEngine {
   TuiNode? _root;
   TuiNode? _focusedNode;
   TuiFrame? _lastFrame;
+  TuiSelectionRange? _selection;
+  TuiNode? _selectionNode;
+  bool _isSelecting = false;
+  int _selectionAnchorOffsetX = 0;
+  int _selectionAnchorOffsetY = 0;
 
   late final StreamSubscription<TuiKeyEvent> _keySubscription;
+  late final StreamSubscription<TuiMouseEvent> _mouseSubscription;
   late final StreamSubscription<TuiResizeEvent> _resizeSubscription;
 
   final StreamController<TuiFrame> _framesController =
       StreamController<TuiFrame>.broadcast();
+  final StreamController<TuiSelectionRange?> _selectionController =
+      StreamController<TuiSelectionRange?>.broadcast();
 
   bool _isDisposed = false;
 
@@ -41,9 +51,17 @@ final class TuiEngine {
 
   TuiFrame? get lastFrame => _lastFrame;
 
+  TuiSelectionRange? get selection => _selection;
+
+  bool get isSelecting => _isSelecting;
+
+  Stream<TuiSelectionRange?> get selectionChanges =>
+      _selectionController.stream;
+
   void mount(TuiNode rootNode) {
     _assertNotDisposed();
     _root = rootNode;
+    _resetSelection(notify: false);
     _rebuildFocusTree();
   }
 
@@ -61,6 +79,7 @@ final class TuiEngine {
 
     final frame = TuiFrame.blank(width: viewportWidth, height: viewportHeight);
     _paintNode(rootNode, frame);
+    _paintSelectionOverlay(frame);
 
     _lastFrame = frame.clone();
     final presentResult = outputSink.present(frame);
@@ -77,8 +96,10 @@ final class TuiEngine {
     _isDisposed = true;
 
     await _keySubscription.cancel();
+    await _mouseSubscription.cancel();
     await _resizeSubscription.cancel();
     await _framesController.close();
+    await _selectionController.close();
   }
 
   void _handleKeyEvent(TuiKeyEvent event) {
@@ -86,15 +107,24 @@ final class TuiEngine {
       return;
     }
 
-    if (event.special == TuiSpecialKey.tab) {
+    final focused = _focusedNode;
+    final handled = _dispatchKeyEvent(focused, event);
+
+    if (!event.defaultPrevented && event.special == TuiSpecialKey.escape) {
+      final cleared = clearSelection();
+      if (cleared) {
+        render();
+        return;
+      }
+    }
+
+    if (!event.defaultPrevented && event.special == TuiSpecialKey.tab) {
       _cycleFocus(forward: !event.shift);
       render();
       return;
     }
 
-    final focused = _focusedNode;
-    if (focused != null) {
-      focused.onKey(event);
+    if (handled || focused != null) {
       render();
     }
   }
@@ -106,6 +136,235 @@ final class TuiEngine {
     viewportWidth = event.width;
     viewportHeight = event.height;
     render();
+  }
+
+  void _handleMouseEvent(TuiMouseEvent event) {
+    if (_isDisposed) {
+      return;
+    }
+    final rootNode = _root;
+    if (rootNode == null || viewportWidth <= 0 || viewportHeight <= 0) {
+      return;
+    }
+
+    _layoutNode(
+      rootNode,
+      TuiRect(x: 0, y: 0, width: viewportWidth, height: viewportHeight),
+    );
+
+    final hit = _hitTest(rootNode, event.x, event.y);
+    final target =
+        hit ?? (event.type == TuiMouseEventType.scroll ? _focusedNode : null);
+    final handled = _dispatchMouseEvent(target, event);
+    final selectionChanged = _updateSelectionLifecycle(event, hit);
+
+    if (!event.defaultPrevented &&
+        event.type == TuiMouseEventType.down &&
+        target != null &&
+        target.focusable) {
+      _setFocusedNode(target);
+    }
+
+    if (handled || target != null || selectionChanged) {
+      render();
+    }
+  }
+
+  bool _dispatchMouseEvent(TuiNode? target, TuiMouseEvent event) {
+    if (target == null) {
+      return false;
+    }
+    if (event.propagationStopped) {
+      return false;
+    }
+    var handled = false;
+    TuiNode? current = target;
+    while (current != null) {
+      current.onMouse(event);
+      handled = true;
+      if (event.propagationStopped) {
+        break;
+      }
+      current = current.parent;
+    }
+    return handled;
+  }
+
+  bool _dispatchKeyEvent(TuiNode? target, TuiKeyEvent event) {
+    if (target == null) {
+      return false;
+    }
+    if (event.propagationStopped) {
+      return false;
+    }
+    var handled = false;
+    TuiNode? current = target;
+    while (current != null) {
+      current.onKey(event);
+      handled = true;
+      if (event.propagationStopped) {
+        break;
+      }
+      current = current.parent;
+    }
+    return handled;
+  }
+
+  bool clearSelection() {
+    return _resetSelection();
+  }
+
+  bool _updateSelectionLifecycle(TuiMouseEvent event, TuiNode? hit) {
+    final isPrimaryButton =
+        event.button == TuiMouseButton.left ||
+        event.button == TuiMouseButton.none;
+
+    if (event.type == TuiMouseEventType.down && isPrimaryButton) {
+      if (!event.defaultPrevented && hit != null && _supportsSelection(hit)) {
+        return _beginSelection(hit, event.x, event.y);
+      }
+      return _resetSelection();
+    }
+
+    if ((event.type == TuiMouseEventType.drag ||
+            event.type == TuiMouseEventType.move) &&
+        _isSelecting) {
+      return _updateSelection(event.x, event.y);
+    }
+
+    if (event.type == TuiMouseEventType.up && isPrimaryButton && _isSelecting) {
+      final changed = _updateSelection(event.x, event.y);
+      final ended = _endSelection();
+      return changed || ended;
+    }
+
+    return false;
+  }
+
+  bool _supportsSelection(TuiNode node) {
+    if (node is TuiText) {
+      return node.selectable;
+    }
+    if (node is TuiAsciiFont) {
+      return node.selectable;
+    }
+    return false;
+  }
+
+  bool _beginSelection(TuiNode node, int x, int y) {
+    final bounds = node.layoutBounds;
+    if (bounds == null || bounds.width <= 0 || bounds.height <= 0) {
+      return false;
+    }
+    final anchor = _clampPointToBounds(bounds, x, y);
+    _selectionNode = node;
+    _selectionAnchorOffsetX = anchor.x - bounds.x;
+    _selectionAnchorOffsetY = anchor.y - bounds.y;
+    final next = TuiSelectionRange(anchor: anchor, focus: anchor);
+    final changed = _selection != next || !_isSelecting;
+    _selection = next;
+    _isSelecting = true;
+    if (changed) {
+      _selectionController.add(_selection);
+    }
+    return changed;
+  }
+
+  bool _updateSelection(int x, int y) {
+    final node = _selectionNode;
+    if (node == null) {
+      return false;
+    }
+    final bounds = node.layoutBounds;
+    if (bounds == null || bounds.width <= 0 || bounds.height <= 0) {
+      return false;
+    }
+    final anchor = _resolveAnchorPoint();
+    if (anchor == null) {
+      return false;
+    }
+    final focus = _clampPointToBounds(bounds, x, y);
+    final next = TuiSelectionRange(anchor: anchor, focus: focus);
+    if (_selection == next) {
+      return false;
+    }
+    _selection = next;
+    _selectionController.add(next);
+    return true;
+  }
+
+  bool _endSelection() {
+    if (!_isSelecting) {
+      return false;
+    }
+    _isSelecting = false;
+    _selectionController.add(_selection);
+    return true;
+  }
+
+  bool _resetSelection({bool notify = true}) {
+    final hasSelection =
+        _selection != null || _selectionNode != null || _isSelecting;
+    if (!hasSelection) {
+      return false;
+    }
+    _selection = null;
+    _selectionNode = null;
+    _isSelecting = false;
+    _selectionAnchorOffsetX = 0;
+    _selectionAnchorOffsetY = 0;
+    if (notify) {
+      _selectionController.add(null);
+    }
+    return true;
+  }
+
+  TuiSelectionPoint? _resolveAnchorPoint() {
+    final node = _selectionNode;
+    final bounds = node?.layoutBounds;
+    if (node == null ||
+        bounds == null ||
+        bounds.width <= 0 ||
+        bounds.height <= 0) {
+      return null;
+    }
+    final x = (bounds.x + _selectionAnchorOffsetX)
+        .clamp(bounds.x, bounds.x + bounds.width - 1)
+        .toInt();
+    final y = (bounds.y + _selectionAnchorOffsetY)
+        .clamp(bounds.y, bounds.y + bounds.height - 1)
+        .toInt();
+    return TuiSelectionPoint(x: x, y: y);
+  }
+
+  TuiSelectionPoint _clampPointToBounds(TuiRect bounds, int x, int y) {
+    final clampedX = x.clamp(bounds.x, bounds.x + bounds.width - 1).toInt();
+    final clampedY = y.clamp(bounds.y, bounds.y + bounds.height - 1).toInt();
+    return TuiSelectionPoint(x: clampedX, y: clampedY);
+  }
+
+  TuiNode? _hitTest(TuiNode node, int x, int y) {
+    final bounds = node.layoutBounds;
+    if (bounds == null) {
+      return null;
+    }
+    final within =
+        x >= bounds.x &&
+        y >= bounds.y &&
+        x < bounds.x + bounds.width &&
+        y < bounds.y + bounds.height;
+    if (!within) {
+      return null;
+    }
+
+    final children = _layoutChildren(node);
+    for (var i = children.length - 1; i >= 0; i--) {
+      final hit = _hitTest(children[i], x, y);
+      if (hit != null) {
+        return hit;
+      }
+    }
+    return node;
   }
 
   void _rebuildFocusTree() {
@@ -167,6 +426,26 @@ final class TuiEngine {
     _focusedNode!.focused = true;
   }
 
+  void _setFocusedNode(TuiNode? node) {
+    final rootNode = _root;
+    if (rootNode == null) {
+      _focusedNode = null;
+      return;
+    }
+
+    final focusables = <TuiNode>[];
+    _collectFocusables(rootNode, focusables);
+    for (final focusable in focusables) {
+      focusable.focused = false;
+    }
+    if (node == null || !focusables.contains(node)) {
+      _focusedNode = null;
+      return;
+    }
+    _focusedNode = node;
+    node.focused = true;
+  }
+
   void _layoutNode(TuiNode node, TuiRect bounds) {
     node.setLayoutBounds(bounds);
     final children = _layoutChildren(node);
@@ -203,11 +482,12 @@ final class TuiEngine {
       return bounds;
     }
 
-    final borderInset = node.border ? 1 : 0;
-    final insetLeft = borderInset + node.resolvedPaddingLeft;
-    final insetTop = borderInset + node.resolvedPaddingTop;
-    final insetRight = borderInset + node.resolvedPaddingRight;
-    final insetBottom = borderInset + node.resolvedPaddingBottom;
+    final insetLeft = (node.hasBorderLeft ? 1 : 0) + node.resolvedPaddingLeft;
+    final insetTop = (node.hasBorderTop ? 1 : 0) + node.resolvedPaddingTop;
+    final insetRight =
+        (node.hasBorderRight ? 1 : 0) + node.resolvedPaddingRight;
+    final insetBottom =
+        (node.hasBorderBottom ? 1 : 0) + node.resolvedPaddingBottom;
 
     final x = bounds.x + insetLeft;
     final y = bounds.y + insetTop;
@@ -903,6 +1183,38 @@ final class TuiEngine {
     }
   }
 
+  void _paintSelectionOverlay(TuiFrame frame) {
+    final activeSelection = _selection;
+    final node = _selectionNode;
+    final bounds = node?.layoutBounds;
+    if (activeSelection == null ||
+        node == null ||
+        bounds == null ||
+        bounds.width <= 0 ||
+        bounds.height <= 0) {
+      return;
+    }
+
+    final maxY = bounds.y + bounds.height - 1;
+    final maxX = bounds.x + bounds.width - 1;
+    for (var y = bounds.y; y <= maxY; y++) {
+      for (var x = bounds.x; x <= maxX; x++) {
+        if (!activeSelection.containsCell(x, y) || !frame.contains(x, y)) {
+          continue;
+        }
+        final cell = frame.cellAt(x, y);
+        frame.setCell(
+          x,
+          y,
+          TuiCell(
+            char: cell.char,
+            style: cell.style.copyWith(inverse: !cell.style.inverse),
+          ),
+        );
+      }
+    }
+  }
+
   void _paintBox(TuiBox box, TuiRect bounds, TuiFrame frame) {
     frame.fillRect(
       bounds.x,
@@ -912,7 +1224,7 @@ final class TuiEngine {
       fill: TuiCell(char: ' ', style: box.style),
     );
 
-    if (!box.border || bounds.width < 2 || bounds.height < 2) {
+    if (!box.hasBorder || bounds.width <= 0 || bounds.height <= 0) {
       return;
     }
 
@@ -920,30 +1232,117 @@ final class TuiEngine {
     final right = bounds.x + bounds.width - 1;
     final top = bounds.y;
     final bottom = bounds.y + bounds.height - 1;
+    final chars = box.resolvedBorderChars;
+    final drawTop = box.hasBorderTop;
+    final drawRight = box.hasBorderRight;
+    final drawBottom = box.hasBorderBottom;
+    final drawLeft = box.hasBorderLeft;
 
-    for (var x = left + 1; x < right; x++) {
-      frame.setCell(x, top, TuiCell(char: '-', style: box.borderStyle));
-      frame.setCell(x, bottom, TuiCell(char: '-', style: box.borderStyle));
+    if (drawTop) {
+      for (var x = left; x <= right; x++) {
+        frame.setCell(
+          x,
+          top,
+          TuiCell(char: chars.horizontal, style: box.borderStyle),
+        );
+      }
     }
-    for (var y = top + 1; y < bottom; y++) {
-      frame.setCell(left, y, TuiCell(char: '|', style: box.borderStyle));
-      frame.setCell(right, y, TuiCell(char: '|', style: box.borderStyle));
+    if (drawBottom) {
+      for (var x = left; x <= right; x++) {
+        frame.setCell(
+          x,
+          bottom,
+          TuiCell(char: chars.horizontal, style: box.borderStyle),
+        );
+      }
+    }
+    if (drawLeft) {
+      for (var y = top; y <= bottom; y++) {
+        frame.setCell(
+          left,
+          y,
+          TuiCell(char: chars.vertical, style: box.borderStyle),
+        );
+      }
+    }
+    if (drawRight) {
+      for (var y = top; y <= bottom; y++) {
+        frame.setCell(
+          right,
+          y,
+          TuiCell(char: chars.vertical, style: box.borderStyle),
+        );
+      }
     }
 
-    frame.setCell(left, top, TuiCell(char: '+', style: box.borderStyle));
-    frame.setCell(right, top, TuiCell(char: '+', style: box.borderStyle));
-    frame.setCell(left, bottom, TuiCell(char: '+', style: box.borderStyle));
-    frame.setCell(right, bottom, TuiCell(char: '+', style: box.borderStyle));
+    void paintCorner({
+      required int x,
+      required int y,
+      required bool hasHorizontal,
+      required bool hasVertical,
+      required String corner,
+    }) {
+      if (!hasHorizontal && !hasVertical) {
+        return;
+      }
+      final char = hasHorizontal && hasVertical
+          ? corner
+          : hasHorizontal
+          ? chars.horizontal
+          : chars.vertical;
+      frame.setCell(x, y, TuiCell(char: char, style: box.borderStyle));
+    }
+
+    paintCorner(
+      x: left,
+      y: top,
+      hasHorizontal: drawTop,
+      hasVertical: drawLeft,
+      corner: chars.topLeft,
+    );
+    paintCorner(
+      x: right,
+      y: top,
+      hasHorizontal: drawTop,
+      hasVertical: drawRight,
+      corner: chars.topRight,
+    );
+    paintCorner(
+      x: left,
+      y: bottom,
+      hasHorizontal: drawBottom,
+      hasVertical: drawLeft,
+      corner: chars.bottomLeft,
+    );
+    paintCorner(
+      x: right,
+      y: bottom,
+      hasHorizontal: drawBottom,
+      hasVertical: drawRight,
+      corner: chars.bottomRight,
+    );
 
     final title = box.title;
-    if (title != null && title.isNotEmpty && bounds.width > 4) {
-      frame.drawText(
-        left + 2,
-        top,
-        title,
-        style: box.borderStyle,
-        maxWidth: bounds.width - 4,
-      );
+    if (drawTop && title != null && title.isNotEmpty) {
+      final titleLeft = left + (drawLeft ? 2 : 1);
+      final titleRight = right - (drawRight ? 2 : 1);
+      final maxTitleWidth = titleRight - titleLeft + 1;
+      if (maxTitleWidth > 0) {
+        final renderWidth = title.length.clamp(0, maxTitleWidth).toInt();
+        var titleX = titleLeft;
+        if (box.titleAlignment == TuiTitleAlignment.center) {
+          titleX = titleLeft + ((maxTitleWidth - renderWidth) ~/ 2);
+        } else if (box.titleAlignment == TuiTitleAlignment.right) {
+          titleX = titleRight - renderWidth + 1;
+        }
+        frame.drawText(
+          titleX,
+          top,
+          title,
+          style: box.borderStyle,
+          maxWidth: maxTitleWidth,
+        );
+      }
     }
   }
 

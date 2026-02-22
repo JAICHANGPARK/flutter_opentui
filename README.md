@@ -14,7 +14,12 @@ Monorepo for OpenTUI in Dart and Flutter.
 
 - `examples/dart_cli_counter`: CLI sample using `opentui`.
 - `examples/flutter_terminal_demo`: Flutter sample using `flutter_opentui` with touch controls.
-- `examples/flutter_opentui_demo`: compact Flutter sample using `flutter_opentui`.
+- `examples/flutter_opentui_demo`: Flutter component catalog showing all OpenTUI node components.
+- Flutter examples include `android/`, `ios/`, `macos/`, and `web/` projects for direct platform runs.
+
+`examples/dart_cli_counter` includes:
+- `bin/main.dart`: simple counter + input/select focus sample.
+- `bin/opencode.dart`: OpenCode-style multi-panel CLI workspace demo.
 
 ## Docs
 

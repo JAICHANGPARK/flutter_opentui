@@ -42,6 +42,8 @@ final class FlutterKeyDispatch {
 final class FlutterInputSource implements TuiInputSource {
   final StreamController<TuiKeyEvent> _keyController =
       StreamController<TuiKeyEvent>.broadcast();
+  final StreamController<TuiMouseEvent> _mouseController =
+      StreamController<TuiMouseEvent>.broadcast();
   final StreamController<TuiResizeEvent> _resizeController =
       StreamController<TuiResizeEvent>.broadcast();
   final StreamController<FlutterKeyDispatch> _dispatchController =
@@ -51,6 +53,9 @@ final class FlutterInputSource implements TuiInputSource {
 
   @override
   Stream<TuiKeyEvent> get keyEvents => _keyController.stream;
+
+  @override
+  Stream<TuiMouseEvent> get mouseEvents => _mouseController.stream;
 
   @override
   Stream<TuiResizeEvent> get resizeEvents => _resizeController.stream;
@@ -178,9 +183,44 @@ final class FlutterInputSource implements TuiInputSource {
     _resizeController.add(TuiResizeEvent(width: width, height: height));
   }
 
+  /// Adds a raw [TuiMouseEvent] to the OpenTUI input stream.
+  void addMouseEvent(TuiMouseEvent event) {
+    _mouseController.add(event);
+  }
+
+  /// Convenience helper for mouse dispatches.
+  void addMouse({
+    required TuiMouseEventType type,
+    required int x,
+    required int y,
+    TuiMouseButton button = TuiMouseButton.none,
+    bool shift = false,
+    bool alt = false,
+    bool ctrl = false,
+    bool? meta,
+    bool? option,
+    TuiScrollInfo? scroll,
+  }) {
+    addMouseEvent(
+      TuiMouseEvent(
+        type: type,
+        x: x,
+        y: y,
+        button: button,
+        shift: shift,
+        alt: alt,
+        ctrl: ctrl,
+        meta: meta,
+        option: option,
+        scroll: scroll,
+      ),
+    );
+  }
+
   /// Closes all event streams.
   Future<void> dispose() async {
     await _keyController.close();
+    await _mouseController.close();
     await _resizeController.close();
     await _dispatchController.close();
     await _pasteController.close();

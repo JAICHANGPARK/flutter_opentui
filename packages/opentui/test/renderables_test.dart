@@ -56,6 +56,37 @@ void main() {
       expect(node.flexGrow, 3);
     });
 
+    test('box renderable forwards border preset and custom chars', () {
+      final renderable = BoxRenderable(
+        id: 'box',
+        border: const <TuiBorderSide>[TuiBorderSide.left, TuiBorderSide.right],
+        titleAlignment: TuiTitleAlignment.right,
+        borderPreset: TuiBorderPreset.heavy,
+        borderChars: const TuiBorderChars(
+          topLeft: '◤',
+          topRight: '◥',
+          bottomLeft: '◣',
+          bottomRight: '◢',
+          horizontal: '═',
+          vertical: '║',
+          topT: '╦',
+          bottomT: '╩',
+          leftT: '╠',
+          rightT: '╣',
+          cross: '╬',
+        ),
+      );
+      final node = renderable.toNode() as TuiBox;
+
+      expect(node.borderPreset, TuiBorderPreset.heavy);
+      expect(node.borderChars, isNotNull);
+      expect(node.resolvedBorderChars.topLeft, '◤');
+      expect(node.borderSides, hasLength(2));
+      expect(node.hasBorderLeft, isTrue);
+      expect(node.hasBorderTop, isFalse);
+      expect(node.titleAlignment, TuiTitleAlignment.right);
+    });
+
     test('instantiate accepts existing renderables and factories', () {
       final node = Box(id: 'root');
       final instantiatedExisting = instantiate<BaseRenderable>(node);

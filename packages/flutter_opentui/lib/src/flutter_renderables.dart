@@ -18,6 +18,8 @@ final class OpenTuiScrollBoxRenderable extends BoxRenderable {
     super.padding,
     super.style,
     super.borderStyle,
+    super.borderPreset,
+    super.borderChars,
     this.scrollOffset = 0,
     this.maxVisibleChildren,
   }) : assert(scrollOffset >= 0),

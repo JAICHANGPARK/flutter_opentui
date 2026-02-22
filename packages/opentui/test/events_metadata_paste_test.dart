@@ -6,7 +6,7 @@ import 'package:test/test.dart';
 void main() {
   group('Event metadata', () {
     test('key events keep old constructors and expose metadata aliases', () {
-      const plain = TuiKeyEvent.character('a');
+      final plain = TuiKeyEvent.character('a');
       expect(plain.character, 'a');
       expect(plain.alt, isFalse);
       expect(plain.meta, isFalse);
@@ -14,7 +14,7 @@ void main() {
       expect(plain.isCharacter, isTrue);
       expect(plain.isPaste, isFalse);
 
-      const withMeta = TuiKeyEvent.character(
+      final withMeta = TuiKeyEvent.character(
         'v',
         meta: true,
         name: 'v',

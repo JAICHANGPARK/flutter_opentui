@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:opentui/opentui.dart';
@@ -42,6 +43,7 @@ final class _OpenTuiViewState extends State<OpenTuiView> {
   bool _ownsEngine = false;
   int _lastColumns = -1;
   int _lastRows = -1;
+  TuiMouseButton _activeMouseButton = TuiMouseButton.none;
 
   @override
   void initState() {
@@ -110,19 +112,30 @@ final class _OpenTuiViewState extends State<OpenTuiView> {
           focusNode: _focusNode,
           autofocus: widget.autofocus,
           onKeyEvent: _onKeyEvent,
-          child: GestureDetector(
+          child: Listener(
             behavior: HitTestBehavior.opaque,
-            onTap: _focusNode.requestFocus,
-            child: ColoredBox(
-              color: widget.backgroundColor,
-              child: CustomPaint(
-                size: Size(width, height),
-                painter: _TuiFramePainter(
-                  frame: widget.controller.latestFrame,
-                  cellWidth: widget.cellWidth,
-                  cellHeight: widget.cellHeight,
-                  textStyle: widget.textStyle,
-                  backgroundColor: widget.backgroundColor,
+            onPointerDown: _onPointerDown,
+            onPointerMove: _onPointerMove,
+            onPointerUp: _onPointerUp,
+            onPointerSignal: (PointerSignalEvent event) {
+              if (event is PointerScrollEvent) {
+                _onPointerScroll(event);
+              }
+            },
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: _focusNode.requestFocus,
+              child: ColoredBox(
+                color: widget.backgroundColor,
+                child: CustomPaint(
+                  size: Size(width, height),
+                  painter: _TuiFramePainter(
+                    frame: widget.controller.latestFrame,
+                    cellWidth: widget.cellWidth,
+                    cellHeight: widget.cellHeight,
+                    textStyle: widget.textStyle,
+                    backgroundColor: widget.backgroundColor,
+                  ),
                 ),
               ),
             ),
@@ -246,6 +259,9 @@ final class _OpenTuiViewState extends State<OpenTuiView> {
     if (key == LogicalKeyboardKey.backspace) {
       return TuiSpecialKey.backspace;
     }
+    if (key == LogicalKeyboardKey.delete) {
+      return TuiSpecialKey.delete;
+    }
     if (key == LogicalKeyboardKey.escape) {
       return TuiSpecialKey.escape;
     }
@@ -261,6 +277,18 @@ final class _OpenTuiViewState extends State<OpenTuiView> {
     if (key == LogicalKeyboardKey.arrowRight) {
       return TuiSpecialKey.arrowRight;
     }
+    if (key == LogicalKeyboardKey.home) {
+      return TuiSpecialKey.home;
+    }
+    if (key == LogicalKeyboardKey.end) {
+      return TuiSpecialKey.end;
+    }
+    if (key == LogicalKeyboardKey.pageUp) {
+      return TuiSpecialKey.pageUp;
+    }
+    if (key == LogicalKeyboardKey.pageDown) {
+      return TuiSpecialKey.pageDown;
+    }
     return null;
   }
 
@@ -269,6 +297,123 @@ final class _OpenTuiViewState extends State<OpenTuiView> {
       return true;
     }
     return input.codeUnitAt(0) < 32;
+  }
+
+  void _onPointerDown(PointerDownEvent event) {
+    _focusNode.requestFocus();
+    final cell = _toCell(event.localPosition);
+    final modifiers = _modifierState();
+    final button = _buttonFromButtons(event.buttons);
+    _activeMouseButton = button;
+    widget.controller.sendMouse(
+      type: TuiMouseEventType.down,
+      x: cell.$1,
+      y: cell.$2,
+      button: button,
+      shift: modifiers.shift,
+      alt: modifiers.alt,
+      ctrl: modifiers.ctrl,
+      meta: modifiers.meta,
+      option: modifiers.alt,
+    );
+  }
+
+  void _onPointerMove(PointerMoveEvent event) {
+    final cell = _toCell(event.localPosition);
+    final modifiers = _modifierState();
+    final dragging = event.buttons != 0;
+    widget.controller.sendMouse(
+      type: dragging ? TuiMouseEventType.drag : TuiMouseEventType.move,
+      x: cell.$1,
+      y: cell.$2,
+      button: dragging ? _activeMouseButton : TuiMouseButton.none,
+      shift: modifiers.shift,
+      alt: modifiers.alt,
+      ctrl: modifiers.ctrl,
+      meta: modifiers.meta,
+      option: modifiers.alt,
+    );
+  }
+
+  void _onPointerUp(PointerUpEvent event) {
+    final cell = _toCell(event.localPosition);
+    final modifiers = _modifierState();
+    widget.controller.sendMouse(
+      type: TuiMouseEventType.up,
+      x: cell.$1,
+      y: cell.$2,
+      button: _activeMouseButton,
+      shift: modifiers.shift,
+      alt: modifiers.alt,
+      ctrl: modifiers.ctrl,
+      meta: modifiers.meta,
+      option: modifiers.alt,
+    );
+    _activeMouseButton = TuiMouseButton.none;
+  }
+
+  void _onPointerScroll(PointerScrollEvent event) {
+    final cell = _toCell(event.localPosition);
+    final modifiers = _modifierState();
+    final delta = event.scrollDelta;
+    final horizontal = delta.dx.abs() > delta.dy.abs();
+    final direction = horizontal
+        ? (delta.dx < 0
+              ? TuiScrollDirection.left
+              : TuiScrollDirection.right)
+        : (delta.dy < 0 ? TuiScrollDirection.up : TuiScrollDirection.down);
+    final units = horizontal
+        ? (delta.dx.abs() / widget.cellWidth).ceil()
+        : (delta.dy.abs() / widget.cellHeight).ceil();
+    widget.controller.sendMouse(
+      type: TuiMouseEventType.scroll,
+      x: cell.$1,
+      y: cell.$2,
+      button: TuiMouseButton.none,
+      shift: modifiers.shift,
+      alt: modifiers.alt,
+      ctrl: modifiers.ctrl,
+      meta: modifiers.meta,
+      option: modifiers.alt,
+      scroll: TuiScrollInfo(direction: direction, delta: math.max(1, units)),
+    );
+  }
+
+  TuiMouseButton _buttonFromButtons(int buttons) {
+    if ((buttons & kPrimaryMouseButton) != 0) {
+      return TuiMouseButton.left;
+    }
+    if ((buttons & kMiddleMouseButton) != 0) {
+      return TuiMouseButton.middle;
+    }
+    if ((buttons & kSecondaryMouseButton) != 0) {
+      return TuiMouseButton.right;
+    }
+    return TuiMouseButton.none;
+  }
+
+  (int, int) _toCell(Offset localPosition) {
+    final maxX = math.max(0, _lastColumns - 1);
+    final maxY = math.max(0, _lastRows - 1);
+    final x = (localPosition.dx / widget.cellWidth)
+        .floor()
+        .clamp(0, maxX)
+        .toInt();
+    final y = (localPosition.dy / widget.cellHeight)
+        .floor()
+        .clamp(0, maxY)
+        .toInt();
+    return (x, y);
+  }
+
+  ({bool shift, bool alt, bool ctrl, bool meta}) _modifierState() {
+    final keyboard = HardwareKeyboard.instance;
+    return (
+      shift: keyboard.isShiftPressed,
+      alt: keyboard.isAltPressed,
+      ctrl: keyboard.isControlPressed,
+      meta: keyboard.isMetaPressed,
+    );
   }
 }
 

@@ -36,6 +36,12 @@ void main() {
     await _pump();
     expect(input.value, equals('x'));
 
+    inputSource.emitKey(const TuiKeyEvent.special(TuiSpecialKey.home));
+    inputSource.emitKey(const TuiKeyEvent.special(TuiSpecialKey.delete));
+    await _pump();
+    expect(input.value, equals(''));
+    expect(input.cursorPosition, equals(0));
+
     inputSource.emitKey(const TuiKeyEvent.special(TuiSpecialKey.tab));
     await _pump();
     expect(engine.focusedNode, same(select));
@@ -43,6 +49,14 @@ void main() {
     inputSource.emitKey(const TuiKeyEvent.special(TuiSpecialKey.arrowDown));
     await _pump();
     expect(select.selectedIndex, equals(1));
+
+    inputSource.emitKey(const TuiKeyEvent.special(TuiSpecialKey.pageDown));
+    await _pump();
+    expect(select.selectedIndex, equals(2));
+
+    inputSource.emitKey(const TuiKeyEvent.special(TuiSpecialKey.home));
+    await _pump();
+    expect(select.selectedIndex, equals(0));
 
     await engine.dispose();
     await inputSource.dispose();

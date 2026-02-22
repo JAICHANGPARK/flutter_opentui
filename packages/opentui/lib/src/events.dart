@@ -6,23 +6,80 @@ enum TuiSpecialKey {
   tab,
   enter,
   backspace,
+  delete,
   escape,
   arrowUp,
   arrowDown,
   arrowLeft,
   arrowRight,
+  home,
+  end,
+  pageUp,
+  pageDown,
   ctrlC,
 }
 
-final class TuiPasteEvent {
-  const TuiPasteEvent({required this.text, this.sequence});
+enum TuiMouseEventType {
+  down,
+  up,
+  move,
+  drag,
+  dragEnd,
+  drop,
+  over,
+  out,
+  scroll,
+}
+
+enum TuiMouseButton { left, middle, right, none }
+
+enum TuiScrollDirection { up, down, left, right }
+
+final class TuiScrollInfo {
+  TuiScrollInfo({required this.direction, this.delta = 1});
+
+  final TuiScrollDirection direction;
+  final int delta;
+}
+
+abstract interface class TuiEvent {
+  bool get defaultPrevented;
+  bool get propagationStopped;
+
+  void preventDefault();
+  void stopPropagation();
+}
+
+mixin TuiEventMixin implements TuiEvent {
+  bool _defaultPrevented = false;
+  bool _propagationStopped = false;
+
+  @override
+  bool get defaultPrevented => _defaultPrevented;
+
+  @override
+  bool get propagationStopped => _propagationStopped;
+
+  @override
+  void preventDefault() {
+    _defaultPrevented = true;
+  }
+
+  @override
+  void stopPropagation() {
+    _propagationStopped = true;
+  }
+}
+
+final class TuiPasteEvent with TuiEventMixin implements TuiEvent {
+  TuiPasteEvent({required this.text, this.sequence});
 
   final String text;
   final String? sequence;
 }
 
-final class TuiKeyEvent {
-  const TuiKeyEvent.character(
+final class TuiKeyEvent with TuiEventMixin implements TuiEvent {
+  TuiKeyEvent.character(
     this.character, {
     this.ctrl = false,
     bool alt = false,
@@ -37,7 +94,7 @@ final class TuiKeyEvent {
        meta = meta ?? option ?? alt,
        option = option ?? meta ?? alt;
 
-  const TuiKeyEvent.special(
+  TuiKeyEvent.special(
     this.special, {
     this.ctrl = false,
     bool alt = false,
@@ -80,6 +137,35 @@ final class TuiKeyEvent {
   bool get isPaste => paste != null;
 }
 
+final class TuiMouseEvent with TuiEventMixin implements TuiEvent {
+  TuiMouseEvent({
+    required this.type,
+    required this.x,
+    required this.y,
+    this.button = TuiMouseButton.none,
+    this.shift = false,
+    this.alt = false,
+    this.ctrl = false,
+    bool? meta,
+    bool? option,
+    this.scroll,
+    this.sequence,
+  }) : meta = meta ?? option ?? alt,
+       option = option ?? meta ?? alt;
+
+  final TuiMouseEventType type;
+  final TuiMouseButton button;
+  final int x;
+  final int y;
+  final bool shift;
+  final bool alt;
+  final bool ctrl;
+  final bool meta;
+  final bool option;
+  final TuiScrollInfo? scroll;
+  final String? sequence;
+}
+
 final class TuiResizeEvent {
   const TuiResizeEvent({required this.width, required this.height});
 
@@ -89,6 +175,7 @@ final class TuiResizeEvent {
 
 abstract interface class TuiInputSource {
   Stream<TuiKeyEvent> get keyEvents;
+  Stream<TuiMouseEvent> get mouseEvents;
 
   Stream<TuiResizeEvent> get resizeEvents;
 }
@@ -100,11 +187,16 @@ abstract interface class TuiOutputSink {
 final class MemoryInputSource implements TuiInputSource {
   final StreamController<TuiKeyEvent> _keyController =
       StreamController<TuiKeyEvent>.broadcast();
+  final StreamController<TuiMouseEvent> _mouseController =
+      StreamController<TuiMouseEvent>.broadcast();
   final StreamController<TuiResizeEvent> _resizeController =
       StreamController<TuiResizeEvent>.broadcast();
 
   @override
   Stream<TuiKeyEvent> get keyEvents => _keyController.stream;
+
+  @override
+  Stream<TuiMouseEvent> get mouseEvents => _mouseController.stream;
 
   @override
   Stream<TuiResizeEvent> get resizeEvents => _resizeController.stream;
@@ -113,12 +205,17 @@ final class MemoryInputSource implements TuiInputSource {
     _keyController.add(event);
   }
 
+  void emitMouse(TuiMouseEvent event) {
+    _mouseController.add(event);
+  }
+
   void emitResize(TuiResizeEvent event) {
     _resizeController.add(event);
   }
 
   Future<void> dispose() async {
     await _keyController.close();
+    await _mouseController.close();
     await _resizeController.close();
   }
 }

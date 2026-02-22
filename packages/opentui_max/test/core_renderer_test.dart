@@ -41,4 +41,51 @@ void main() {
     await engine.dispose();
     await input.dispose();
   });
+
+  test('engine renders configured border preset characters', () async {
+    final input = MemoryInputSource();
+    final output = MemoryOutputSink();
+    final engine = TuiEngine(
+      inputSource: input,
+      outputSink: output,
+      viewportWidth: 6,
+      viewportHeight: 4,
+    );
+
+    engine.mount(
+      TuiBox(
+        id: 'root',
+        width: 6,
+        height: 4,
+        border: true,
+        borderPreset: TuiBorderPreset.double,
+      ),
+    );
+    engine.render();
+
+    final frame = engine.lastFrame!;
+    expect(frame.cellAt(0, 0).char, equals('╔'));
+    expect(frame.cellAt(5, 0).char, equals('╗'));
+    expect(frame.cellAt(0, 3).char, equals('╚'));
+    expect(frame.cellAt(5, 3).char, equals('╝'));
+
+    engine.mount(
+      TuiBox(
+        id: 'partial',
+        width: 6,
+        height: 4,
+        border: const <TuiBorderSide>[TuiBorderSide.left, TuiBorderSide.right],
+        title: 'S',
+        titleAlignment: TuiTitleAlignment.right,
+      ),
+    );
+    engine.render();
+    final partialFrame = engine.lastFrame!;
+    expect(partialFrame.cellAt(0, 0).char, equals('│'));
+    expect(partialFrame.cellAt(5, 0).char, equals('│'));
+    expect(partialFrame.cellAt(1, 0).char, equals(' '));
+
+    await engine.dispose();
+    await input.dispose();
+  });
 }

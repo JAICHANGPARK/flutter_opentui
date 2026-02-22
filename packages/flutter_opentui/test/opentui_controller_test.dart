@@ -13,7 +13,7 @@ void main() {
       }
     });
 
-    controller.sendKeyEvent(const TuiKeyEvent.character('k'));
+    controller.sendKeyEvent(TuiKeyEvent.character('k'));
 
     final captured = await completer.future.timeout(const Duration(seconds: 1));
     expect(captured.character, 'k');
@@ -77,6 +77,32 @@ void main() {
       await controller.dispose();
     },
   );
+
+  test('controller forwards mouse events to input source', () async {
+    final controller = OpenTuiController();
+    final completer = Completer<TuiMouseEvent>();
+    final subscription = controller.inputSource.mouseEvents.listen((event) {
+      if (!completer.isCompleted) {
+        completer.complete(event);
+      }
+    });
+
+    controller.sendMouse(
+      type: TuiMouseEventType.down,
+      x: 3,
+      y: 2,
+      button: TuiMouseButton.left,
+    );
+
+    final captured = await completer.future.timeout(const Duration(seconds: 1));
+    expect(captured.type, TuiMouseEventType.down);
+    expect(captured.button, TuiMouseButton.left);
+    expect(captured.x, 3);
+    expect(captured.y, 2);
+
+    await subscription.cancel();
+    await controller.dispose();
+  });
 
   test('controller forwards key metadata dispatch', () async {
     final controller = OpenTuiController();

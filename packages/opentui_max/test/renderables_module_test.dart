@@ -3,13 +3,23 @@ import 'package:test/test.dart';
 
 void main() {
   test('renderables convert into TuiNode trees', () {
-    final root = BoxRenderable(id: 'root', border: true, padding: 1);
+    final root = BoxRenderable(
+      id: 'root',
+      border: const <TuiBorderSide>[TuiBorderSide.left],
+      padding: 1,
+      borderPreset: TuiBorderPreset.double,
+      titleAlignment: TuiTitleAlignment.center,
+    );
     root.add(TextRenderable(id: 'text', content: 'hello'));
     root.add(InputRenderable(id: 'input', placeholder: 'name'));
 
     final node = root.toNode();
     expect(node.id, equals('root'));
     expect(node.children, hasLength(2));
+    expect((node as TuiBox).borderPreset, equals(TuiBorderPreset.double));
+    expect(node.hasBorderLeft, isTrue);
+    expect(node.hasBorderTop, isFalse);
+    expect(node.titleAlignment, equals(TuiTitleAlignment.center));
   });
 
   test('diff renderable computes plus minus lines', () {

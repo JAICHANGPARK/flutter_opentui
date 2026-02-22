@@ -110,11 +110,16 @@ void main() {
 final class _FakeInput implements TuiInputSource {
   final StreamController<TuiKeyEvent> _keyController =
       StreamController<TuiKeyEvent>.broadcast();
+  final StreamController<TuiMouseEvent> _mouseController =
+      StreamController<TuiMouseEvent>.broadcast();
   final StreamController<TuiResizeEvent> _resizeController =
       StreamController<TuiResizeEvent>.broadcast();
 
   @override
   Stream<TuiKeyEvent> get keyEvents => _keyController.stream;
+
+  @override
+  Stream<TuiMouseEvent> get mouseEvents => _mouseController.stream;
 
   @override
   Stream<TuiResizeEvent> get resizeEvents => _resizeController.stream;

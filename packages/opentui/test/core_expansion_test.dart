@@ -31,11 +31,11 @@ void main() {
       expect(tabs.selectedIndex, 0);
       expect(output.frames.last.cellAt(1, 0).char, 'h');
 
-      input.addKey(const TuiKeyEvent.special(TuiSpecialKey.arrowRight));
+      input.addKey(TuiKeyEvent.special(TuiSpecialKey.arrowRight));
       await Future<void>.delayed(Duration.zero);
       expect(tabs.selectedIndex, 1);
 
-      input.addKey(const TuiKeyEvent.special(TuiSpecialKey.arrowLeft));
+      input.addKey(TuiKeyEvent.special(TuiSpecialKey.arrowLeft));
       await Future<void>.delayed(Duration.zero);
       expect(tabs.selectedIndex, 0);
 
@@ -118,11 +118,16 @@ void main() {
 final class _FakeInput implements TuiInputSource {
   final StreamController<TuiKeyEvent> _keyController =
       StreamController<TuiKeyEvent>.broadcast();
+  final StreamController<TuiMouseEvent> _mouseController =
+      StreamController<TuiMouseEvent>.broadcast();
   final StreamController<TuiResizeEvent> _resizeController =
       StreamController<TuiResizeEvent>.broadcast();
 
   @override
   Stream<TuiKeyEvent> get keyEvents => _keyController.stream;
+
+  @override
+  Stream<TuiMouseEvent> get mouseEvents => _mouseController.stream;
 
   @override
   Stream<TuiResizeEvent> get resizeEvents => _resizeController.stream;
@@ -133,6 +138,7 @@ final class _FakeInput implements TuiInputSource {
 
   Future<void> dispose() async {
     await _keyController.close();
+    await _mouseController.close();
     await _resizeController.close();
   }
 }

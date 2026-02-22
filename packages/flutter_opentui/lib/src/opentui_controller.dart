@@ -148,6 +148,38 @@ final class OpenTuiController extends ChangeNotifier {
     _inputSource.addResize(width: width, height: height);
   }
 
+  /// Sends a raw mouse event to the OpenTUI input stream.
+  void sendMouseEvent(TuiMouseEvent event) {
+    _inputSource.addMouseEvent(event);
+  }
+
+  /// Sends a mouse event with convenience parameters.
+  void sendMouse({
+    required TuiMouseEventType type,
+    required int x,
+    required int y,
+    TuiMouseButton button = TuiMouseButton.none,
+    bool shift = false,
+    bool alt = false,
+    bool ctrl = false,
+    bool? meta,
+    bool? option,
+    TuiScrollInfo? scroll,
+  }) {
+    _inputSource.addMouse(
+      type: type,
+      x: x,
+      y: y,
+      button: button,
+      shift: shift,
+      alt: alt,
+      ctrl: ctrl,
+      meta: meta,
+      option: option,
+      scroll: scroll,
+    );
+  }
+
   @override
   Future<void> dispose() async {
     await detach(disposeEngine: true);

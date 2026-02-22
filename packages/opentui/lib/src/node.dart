@@ -10,6 +10,163 @@ enum TuiAlign { start, center, end, stretch }
 
 enum TuiWrap { noWrap, wrap }
 
+enum TuiBorderSide { top, right, bottom, left }
+
+enum TuiBorderPreset { single, double, rounded, heavy }
+
+enum TuiTitleAlignment { left, center, right }
+
+bool _isValidBorderValue(Object value) {
+  if (value is bool) {
+    return true;
+  }
+  if (value is List) {
+    return value.every((entry) => _parseBorderSide(entry) != null);
+  }
+  return false;
+}
+
+TuiBorderSide? _parseBorderSide(Object? entry) {
+  if (entry is TuiBorderSide) {
+    return entry;
+  }
+  if (entry is String) {
+    switch (entry) {
+      case 'top':
+        return TuiBorderSide.top;
+      case 'right':
+        return TuiBorderSide.right;
+      case 'bottom':
+        return TuiBorderSide.bottom;
+      case 'left':
+        return TuiBorderSide.left;
+    }
+  }
+  return null;
+}
+
+Set<TuiBorderSide> _resolveBorderSides(Object value) {
+  if (value is bool) {
+    if (!value) {
+      return <TuiBorderSide>{};
+    }
+    return <TuiBorderSide>{
+      TuiBorderSide.top,
+      TuiBorderSide.right,
+      TuiBorderSide.bottom,
+      TuiBorderSide.left,
+    };
+  }
+  if (value is List) {
+    final sides = <TuiBorderSide>{};
+    for (final entry in value) {
+      final side = _parseBorderSide(entry);
+      if (side != null) {
+        sides.add(side);
+      }
+    }
+    return sides;
+  }
+  return <TuiBorderSide>{};
+}
+
+final class TuiBorderChars {
+  const TuiBorderChars({
+    required this.topLeft,
+    required this.topRight,
+    required this.bottomLeft,
+    required this.bottomRight,
+    required this.horizontal,
+    required this.vertical,
+    required this.topT,
+    required this.bottomT,
+    required this.leftT,
+    required this.rightT,
+    required this.cross,
+  });
+
+  final String topLeft;
+  final String topRight;
+  final String bottomLeft;
+  final String bottomRight;
+  final String horizontal;
+  final String vertical;
+  final String topT;
+  final String bottomT;
+  final String leftT;
+  final String rightT;
+  final String cross;
+
+  static const TuiBorderChars single = TuiBorderChars(
+    topLeft: '┌',
+    topRight: '┐',
+    bottomLeft: '└',
+    bottomRight: '┘',
+    horizontal: '─',
+    vertical: '│',
+    topT: '┬',
+    bottomT: '┴',
+    leftT: '├',
+    rightT: '┤',
+    cross: '┼',
+  );
+
+  static const TuiBorderChars double = TuiBorderChars(
+    topLeft: '╔',
+    topRight: '╗',
+    bottomLeft: '╚',
+    bottomRight: '╝',
+    horizontal: '═',
+    vertical: '║',
+    topT: '╦',
+    bottomT: '╩',
+    leftT: '╠',
+    rightT: '╣',
+    cross: '╬',
+  );
+
+  static const TuiBorderChars rounded = TuiBorderChars(
+    topLeft: '╭',
+    topRight: '╮',
+    bottomLeft: '╰',
+    bottomRight: '╯',
+    horizontal: '─',
+    vertical: '│',
+    topT: '┬',
+    bottomT: '┴',
+    leftT: '├',
+    rightT: '┤',
+    cross: '┼',
+  );
+
+  static const TuiBorderChars heavy = TuiBorderChars(
+    topLeft: '┏',
+    topRight: '┓',
+    bottomLeft: '┗',
+    bottomRight: '┛',
+    horizontal: '━',
+    vertical: '┃',
+    topT: '┳',
+    bottomT: '┻',
+    leftT: '┣',
+    rightT: '┫',
+    cross: '╋',
+  );
+
+  static TuiBorderChars fromPreset(TuiBorderPreset preset) {
+    switch (preset) {
+      case TuiBorderPreset.single:
+        return TuiBorderChars.single;
+      case TuiBorderPreset.double:
+        return TuiBorderChars.double;
+      case TuiBorderPreset.rounded:
+        return TuiBorderChars.rounded;
+      case TuiBorderPreset.heavy:
+        return TuiBorderChars.heavy;
+    }
+  }
+}
+
 final class TuiRect {
   const TuiRect({
     required this.x,
@@ -90,21 +247,34 @@ sealed class TuiNode {
   bool focused = false;
 
   final List<TuiNode> children = <TuiNode>[];
+  TuiNode? _parent;
 
   TuiRect? _layoutBounds;
 
   TuiRect? get layoutBounds => _layoutBounds;
+  TuiNode? get parent => _parent;
 
   void setLayoutBounds(TuiRect value) {
     _layoutBounds = value;
   }
 
   void add(TuiNode child) {
+    if (identical(child, this)) {
+      throw ArgumentError('A node cannot contain itself.');
+    }
+    if (identical(child._parent, this)) {
+      return;
+    }
+    child._parent?.remove(child);
+    child._parent = this;
     children.add(child);
   }
 
   void remove(TuiNode child) {
-    children.remove(child);
+    final removed = children.remove(child);
+    if (removed && identical(child._parent, this)) {
+      child._parent = null;
+    }
   }
 
   int get resolvedMarginLeft => marginLeft ?? marginX ?? margin;
@@ -116,6 +286,8 @@ sealed class TuiNode {
   int get resolvedMarginBottom => marginBottom ?? marginY ?? margin;
 
   void onKey(TuiKeyEvent keyEvent) {}
+
+  void onMouse(TuiMouseEvent mouseEvent) {}
 }
 
 final class TuiBox extends TuiNode {
@@ -145,6 +317,7 @@ final class TuiBox extends TuiNode {
     this.align = TuiAlign.stretch,
     this.border = false,
     this.title,
+    this.titleAlignment = TuiTitleAlignment.left,
     this.padding = 0,
     this.paddingX,
     this.paddingY,
@@ -154,7 +327,11 @@ final class TuiBox extends TuiNode {
     this.paddingBottom,
     this.style = TuiStyle.plain,
     this.borderStyle = const TuiStyle(foreground: TuiColor.cyan),
-  }) : assert(padding >= 0),
+    this.borderPreset = TuiBorderPreset.single,
+    this.borderChars,
+  }) : borderSides = _resolveBorderSides(border),
+       assert(_isValidBorderValue(border)),
+       assert(padding >= 0),
        assert(paddingX == null || paddingX >= 0),
        assert(paddingY == null || paddingY >= 0),
        assert(paddingLeft == null || paddingLeft >= 0),
@@ -166,8 +343,10 @@ final class TuiBox extends TuiNode {
   final TuiWrap wrap;
   final TuiJustify justify;
   final TuiAlign align;
-  final bool border;
+  final Object border;
+  final Set<TuiBorderSide> borderSides;
   final String? title;
+  final TuiTitleAlignment titleAlignment;
   final int padding;
   final int? paddingX;
   final int? paddingY;
@@ -177,6 +356,8 @@ final class TuiBox extends TuiNode {
   final int? paddingBottom;
   final TuiStyle style;
   final TuiStyle borderStyle;
+  final TuiBorderPreset borderPreset;
+  final TuiBorderChars? borderChars;
 
   int get resolvedPaddingLeft => paddingLeft ?? paddingX ?? padding;
 
@@ -185,6 +366,19 @@ final class TuiBox extends TuiNode {
   int get resolvedPaddingRight => paddingRight ?? paddingX ?? padding;
 
   int get resolvedPaddingBottom => paddingBottom ?? paddingY ?? padding;
+
+  TuiBorderChars get resolvedBorderChars =>
+      borderChars ?? TuiBorderChars.fromPreset(borderPreset);
+
+  bool get hasBorder => borderSides.isNotEmpty;
+
+  bool get hasBorderTop => borderSides.contains(TuiBorderSide.top);
+
+  bool get hasBorderRight => borderSides.contains(TuiBorderSide.right);
+
+  bool get hasBorderBottom => borderSides.contains(TuiBorderSide.bottom);
+
+  bool get hasBorderLeft => borderSides.contains(TuiBorderSide.left);
 }
 
 class TuiText extends TuiNode {
@@ -210,10 +404,12 @@ class TuiText extends TuiNode {
     super.top,
     super.flexGrow,
     this.style = TuiStyle.plain,
+    this.selectable = true,
   });
 
   String text;
   TuiStyle style;
+  bool selectable;
 }
 
 class TuiInput extends TuiNode {
@@ -267,6 +463,12 @@ class TuiInput extends TuiNode {
       }
       return;
     }
+    if (special == TuiSpecialKey.delete) {
+      if (cursorPosition < value.length && value.isNotEmpty) {
+        value = value.replaceRange(cursorPosition, cursorPosition + 1, '');
+      }
+      return;
+    }
     if (special == TuiSpecialKey.arrowLeft) {
       if (cursorPosition > 0) {
         cursorPosition -= 1;
@@ -277,6 +479,14 @@ class TuiInput extends TuiNode {
       if (cursorPosition < value.length) {
         cursorPosition += 1;
       }
+      return;
+    }
+    if (special == TuiSpecialKey.home) {
+      cursorPosition = 0;
+      return;
+    }
+    if (special == TuiSpecialKey.end) {
+      cursorPosition = value.length;
       return;
     }
 
@@ -293,6 +503,22 @@ class TuiInput extends TuiNode {
     }
     value = value.replaceRange(cursorPosition, cursorPosition, character);
     cursorPosition += character.length;
+  }
+
+  @override
+  void onMouse(TuiMouseEvent mouseEvent) {
+    if (mouseEvent.type != TuiMouseEventType.down ||
+        (mouseEvent.button != TuiMouseButton.left &&
+            mouseEvent.button != TuiMouseButton.none)) {
+      return;
+    }
+    final bounds = layoutBounds;
+    if (bounds == null) {
+      return;
+    }
+    final localX = (mouseEvent.x - bounds.x).clamp(0, value.length).toInt();
+    cursorPosition = localX;
+    mouseEvent.stopPropagation();
   }
 }
 
@@ -330,6 +556,22 @@ final class TuiTextarea extends TuiInput {
   @override
   void onKey(TuiKeyEvent keyEvent) {
     final special = keyEvent.special;
+    if (special == TuiSpecialKey.home) {
+      cursorPosition = _lineStart(cursorPosition);
+      return;
+    }
+    if (special == TuiSpecialKey.end) {
+      cursorPosition = _lineEnd(cursorPosition);
+      return;
+    }
+    if (special == TuiSpecialKey.pageUp) {
+      _moveVertical(-5);
+      return;
+    }
+    if (special == TuiSpecialKey.pageDown) {
+      _moveVertical(5);
+      return;
+    }
     if (special == TuiSpecialKey.arrowUp) {
       _moveVertical(-1);
       return;
@@ -352,31 +594,82 @@ final class TuiTextarea extends TuiInput {
     return breakIndex < 0 ? 0 : breakIndex + 1;
   }
 
-  void _moveVertical(int delta) {
-    final start = _lineStart(cursorPosition);
-    final column = cursorPosition - start;
+  int _lineEnd(int index) {
+    final start = _lineStart(index);
+    final breakIndex = value.indexOf('\n', start);
+    return breakIndex < 0 ? value.length : breakIndex;
+  }
 
-    if (delta < 0) {
-      if (start == 0) {
+  void _moveVertical(int delta) {
+    if (delta == 0) {
+      return;
+    }
+
+    final moves = delta.abs();
+    for (var i = 0; i < moves; i++) {
+      final start = _lineStart(cursorPosition);
+      final column = cursorPosition - start;
+
+      if (delta < 0) {
+        if (start == 0) {
+          return;
+        }
+        final previousBreak = value.lastIndexOf('\n', start - 2);
+        final previousStart = previousBreak < 0 ? 0 : previousBreak + 1;
+        final previousEnd = start - 1;
+        final previousLength = previousEnd - previousStart;
+        cursorPosition = previousStart + column.clamp(0, previousLength);
+        continue;
+      }
+
+      final nextBreak = value.indexOf('\n', start);
+      if (nextBreak < 0) {
         return;
       }
-      final previousBreak = value.lastIndexOf('\n', start - 2);
-      final previousStart = previousBreak < 0 ? 0 : previousBreak + 1;
-      final previousEnd = start - 1;
-      final previousLength = previousEnd - previousStart;
-      cursorPosition = previousStart + column.clamp(0, previousLength);
-      return;
+      final nextStart = nextBreak + 1;
+      final nextEndBreak = value.indexOf('\n', nextStart);
+      final nextEnd = nextEndBreak < 0 ? value.length : nextEndBreak;
+      final nextLength = nextEnd - nextStart;
+      cursorPosition = nextStart + column.clamp(0, nextLength);
     }
+  }
 
-    final nextBreak = value.indexOf('\n', start);
-    if (nextBreak < 0) {
+  int _offsetForRowColumn(int row, int column) {
+    if (row <= 0) {
+      return column.clamp(0, _lineEnd(0)).toInt();
+    }
+    var currentRow = 0;
+    var start = 0;
+    while (currentRow < row && start <= value.length) {
+      final breakIndex = value.indexOf('\n', start);
+      if (breakIndex < 0) {
+        return (start + column).clamp(start, value.length).toInt();
+      }
+      start = breakIndex + 1;
+      currentRow++;
+    }
+    final lineEndBreak = value.indexOf('\n', start);
+    final lineEnd = lineEndBreak < 0 ? value.length : lineEndBreak;
+    return (start + column).clamp(start, lineEnd).toInt();
+  }
+
+  @override
+  void onMouse(TuiMouseEvent mouseEvent) {
+    if (mouseEvent.type != TuiMouseEventType.down ||
+        (mouseEvent.button != TuiMouseButton.left &&
+            mouseEvent.button != TuiMouseButton.none)) {
+      return super.onMouse(mouseEvent);
+    }
+    final bounds = layoutBounds;
+    if (bounds == null) {
       return;
     }
-    final nextStart = nextBreak + 1;
-    final nextEndBreak = value.indexOf('\n', nextStart);
-    final nextEnd = nextEndBreak < 0 ? value.length : nextEndBreak;
-    final nextLength = nextEnd - nextStart;
-    cursorPosition = nextStart + column.clamp(0, nextLength);
+    final localX = (mouseEvent.x - bounds.x).clamp(0, bounds.width - 1).toInt();
+    final localY = (mouseEvent.y - bounds.y)
+        .clamp(0, bounds.height - 1)
+        .toInt();
+    cursorPosition = _offsetForRowColumn(scrollTop + localY, localX);
+    mouseEvent.stopPropagation();
   }
 }
 
@@ -422,6 +715,14 @@ final class TuiSelect extends TuiNode {
     if (options.isEmpty) {
       return;
     }
+    if (special == TuiSpecialKey.home || special == TuiSpecialKey.pageUp) {
+      selectedIndex = 0;
+      return;
+    }
+    if (special == TuiSpecialKey.end || special == TuiSpecialKey.pageDown) {
+      selectedIndex = options.length - 1;
+      return;
+    }
     if (special == TuiSpecialKey.arrowUp) {
       selectedIndex = (selectedIndex - 1).clamp(0, options.length - 1);
       return;
@@ -429,6 +730,41 @@ final class TuiSelect extends TuiNode {
     if (special == TuiSpecialKey.arrowDown) {
       selectedIndex = (selectedIndex + 1).clamp(0, options.length - 1);
     }
+  }
+
+  @override
+  void onMouse(TuiMouseEvent mouseEvent) {
+    if (options.isEmpty) {
+      return;
+    }
+    if (mouseEvent.type == TuiMouseEventType.scroll &&
+        mouseEvent.scroll != null) {
+      final direction = mouseEvent.scroll!.direction;
+      if (direction == TuiScrollDirection.up) {
+        selectedIndex = (selectedIndex - 1).clamp(0, options.length - 1);
+        mouseEvent.stopPropagation();
+        return;
+      }
+      if (direction == TuiScrollDirection.down) {
+        selectedIndex = (selectedIndex + 1).clamp(0, options.length - 1);
+        mouseEvent.stopPropagation();
+        return;
+      }
+    }
+    if (mouseEvent.type != TuiMouseEventType.down ||
+        (mouseEvent.button != TuiMouseButton.left &&
+            mouseEvent.button != TuiMouseButton.none)) {
+      return;
+    }
+    final bounds = layoutBounds;
+    if (bounds == null) {
+      return;
+    }
+    final localY = (mouseEvent.y - bounds.y)
+        .clamp(0, bounds.height - 1)
+        .toInt();
+    selectedIndex = localY.clamp(0, options.length - 1);
+    mouseEvent.stopPropagation();
   }
 }
 
@@ -476,6 +812,14 @@ final class TuiTabSelect extends TuiNode {
     if (options.isEmpty) {
       return;
     }
+    if (special == TuiSpecialKey.home || special == TuiSpecialKey.pageUp) {
+      selectedIndex = 0;
+      return;
+    }
+    if (special == TuiSpecialKey.end || special == TuiSpecialKey.pageDown) {
+      selectedIndex = options.length - 1;
+      return;
+    }
     if (special == TuiSpecialKey.arrowLeft ||
         special == TuiSpecialKey.arrowUp) {
       selectedIndex = (selectedIndex - 1).clamp(0, options.length - 1);
@@ -484,6 +828,53 @@ final class TuiTabSelect extends TuiNode {
     if (special == TuiSpecialKey.arrowRight ||
         special == TuiSpecialKey.arrowDown) {
       selectedIndex = (selectedIndex + 1).clamp(0, options.length - 1);
+    }
+  }
+
+  @override
+  void onMouse(TuiMouseEvent mouseEvent) {
+    if (options.isEmpty) {
+      return;
+    }
+    if (mouseEvent.type == TuiMouseEventType.scroll &&
+        mouseEvent.scroll != null) {
+      final direction = mouseEvent.scroll!.direction;
+      if (direction == TuiScrollDirection.left ||
+          direction == TuiScrollDirection.up) {
+        selectedIndex = (selectedIndex - 1).clamp(0, options.length - 1);
+        mouseEvent.stopPropagation();
+        return;
+      }
+      if (direction == TuiScrollDirection.right ||
+          direction == TuiScrollDirection.down) {
+        selectedIndex = (selectedIndex + 1).clamp(0, options.length - 1);
+        mouseEvent.stopPropagation();
+        return;
+      }
+    }
+    if (mouseEvent.type != TuiMouseEventType.down ||
+        (mouseEvent.button != TuiMouseButton.left &&
+            mouseEvent.button != TuiMouseButton.none)) {
+      return;
+    }
+    final bounds = layoutBounds;
+    if (bounds == null) {
+      return;
+    }
+    final localX = (mouseEvent.x - bounds.x).clamp(0, bounds.width - 1).toInt();
+    var cursor = 0;
+    for (var i = 0; i < options.length; i++) {
+      final label = ' ${options[i]} ';
+      final end = cursor + label.length;
+      if (localX >= cursor && localX < end) {
+        selectedIndex = i;
+        mouseEvent.stopPropagation();
+        return;
+      }
+      cursor = end;
+      if (i < options.length - 1) {
+        cursor += separator.length;
+      }
     }
   }
 }
@@ -512,6 +903,7 @@ final class TuiAsciiFont extends TuiNode {
     super.flexGrow,
     this.style = TuiStyle.plain,
     this.letterSpacing = 1,
+    this.selectable = true,
   });
 
   static const int defaultGlyphHeight = 5;
@@ -519,6 +911,7 @@ final class TuiAsciiFont extends TuiNode {
   String text;
   TuiStyle style;
   int letterSpacing;
+  bool selectable;
 }
 
 final class TuiFrameBufferNode extends TuiNode {
@@ -743,6 +1136,7 @@ final class TuiScrollBox extends TuiBox {
     super.align,
     super.border,
     super.title,
+    super.titleAlignment,
     super.padding,
     super.paddingX,
     super.paddingY,
@@ -752,6 +1146,8 @@ final class TuiScrollBox extends TuiBox {
     super.paddingBottom,
     super.style,
     super.borderStyle,
+    super.borderPreset,
+    super.borderChars,
     this.scrollOffset = 0,
     this.scrollStep = 1,
     this.fastScrollStep = 5,
@@ -777,6 +1173,23 @@ final class TuiScrollBox extends TuiBox {
   void onKey(TuiKeyEvent keyEvent) {
     final special = keyEvent.special;
     final step = keyEvent.shift ? fastScrollStep : scrollStep;
+    final maxOffset = children.isEmpty ? 0 : children.length - 1;
+    if (special == TuiSpecialKey.home) {
+      scrollOffset = 0;
+      return;
+    }
+    if (special == TuiSpecialKey.end) {
+      scrollOffset = maxOffset;
+      return;
+    }
+    if (special == TuiSpecialKey.pageUp) {
+      scrollBy(-fastScrollStep);
+      return;
+    }
+    if (special == TuiSpecialKey.pageDown) {
+      scrollBy(fastScrollStep);
+      return;
+    }
     if (special == TuiSpecialKey.arrowUp ||
         special == TuiSpecialKey.arrowLeft) {
       scrollBy(-step);
@@ -786,6 +1199,25 @@ final class TuiScrollBox extends TuiBox {
         special == TuiSpecialKey.arrowRight) {
       scrollBy(step);
     }
+  }
+
+  @override
+  void onMouse(TuiMouseEvent mouseEvent) {
+    if (mouseEvent.type != TuiMouseEventType.scroll ||
+        mouseEvent.scroll == null) {
+      return;
+    }
+    final scroll = mouseEvent.scroll!;
+    final delta = scroll.delta.clamp(1, 100).toInt();
+    switch (scroll.direction) {
+      case TuiScrollDirection.up:
+      case TuiScrollDirection.left:
+        scrollBy(-delta * scrollStep);
+      case TuiScrollDirection.down:
+      case TuiScrollDirection.right:
+        scrollBy(delta * scrollStep);
+    }
+    mouseEvent.stopPropagation();
   }
 }
 
@@ -836,6 +1268,22 @@ final class TuiScrollbar extends TuiNode {
   void onKey(TuiKeyEvent keyEvent) {
     final special = keyEvent.special;
     final delta = keyEvent.shift ? fastStep : step;
+    if (special == TuiSpecialKey.home) {
+      value = 0.0;
+      return;
+    }
+    if (special == TuiSpecialKey.end) {
+      value = 1.0;
+      return;
+    }
+    if (special == TuiSpecialKey.pageUp) {
+      value = (value - fastStep).clamp(0.0, 1.0);
+      return;
+    }
+    if (special == TuiSpecialKey.pageDown) {
+      value = (value + fastStep).clamp(0.0, 1.0);
+      return;
+    }
     if (special == TuiSpecialKey.arrowUp ||
         special == TuiSpecialKey.arrowLeft) {
       value = (value - delta).clamp(0.0, 1.0);
@@ -845,6 +1293,47 @@ final class TuiScrollbar extends TuiNode {
         special == TuiSpecialKey.arrowRight) {
       value = (value + delta).clamp(0.0, 1.0);
     }
+  }
+
+  @override
+  void onMouse(TuiMouseEvent mouseEvent) {
+    if (mouseEvent.type == TuiMouseEventType.scroll &&
+        mouseEvent.scroll != null) {
+      final scroll = mouseEvent.scroll!;
+      final delta = step * scroll.delta.clamp(1, 100);
+      if (scroll.direction == TuiScrollDirection.up ||
+          scroll.direction == TuiScrollDirection.left) {
+        value = (value - delta).clamp(0.0, 1.0);
+      } else {
+        value = (value + delta).clamp(0.0, 1.0);
+      }
+      mouseEvent.stopPropagation();
+      return;
+    }
+
+    if (mouseEvent.type != TuiMouseEventType.down) {
+      return;
+    }
+    final bounds = layoutBounds;
+    if (bounds == null) {
+      return;
+    }
+    if (vertical) {
+      if (bounds.height <= 1) {
+        value = 0.0;
+      } else {
+        final localY = (mouseEvent.y - bounds.y).clamp(0, bounds.height - 1);
+        value = (localY / (bounds.height - 1)).clamp(0.0, 1.0);
+      }
+    } else {
+      if (bounds.width <= 1) {
+        value = 0.0;
+      } else {
+        final localX = (mouseEvent.x - bounds.x).clamp(0, bounds.width - 1);
+        value = (localX / (bounds.width - 1)).clamp(0.0, 1.0);
+      }
+    }
+    mouseEvent.stopPropagation();
   }
 }
 
@@ -894,6 +1383,23 @@ final class TuiSlider extends TuiNode {
   @override
   void onKey(TuiKeyEvent keyEvent) {
     final special = keyEvent.special;
+    final pageStep = step * 5;
+    if (special == TuiSpecialKey.home) {
+      value = min;
+      return;
+    }
+    if (special == TuiSpecialKey.end) {
+      value = max;
+      return;
+    }
+    if (special == TuiSpecialKey.pageUp) {
+      value = (value + pageStep).clamp(min, max);
+      return;
+    }
+    if (special == TuiSpecialKey.pageDown) {
+      value = (value - pageStep).clamp(min, max);
+      return;
+    }
     if (special == TuiSpecialKey.arrowLeft ||
         special == TuiSpecialKey.arrowDown) {
       value = (value - step).clamp(min, max);
@@ -903,5 +1409,48 @@ final class TuiSlider extends TuiNode {
         special == TuiSpecialKey.arrowUp) {
       value = (value + step).clamp(min, max);
     }
+  }
+
+  @override
+  void onMouse(TuiMouseEvent mouseEvent) {
+    if (mouseEvent.type == TuiMouseEventType.scroll &&
+        mouseEvent.scroll != null) {
+      final scroll = mouseEvent.scroll!;
+      final delta = step * scroll.delta.clamp(1, 100);
+      if (scroll.direction == TuiScrollDirection.up ||
+          scroll.direction == TuiScrollDirection.right) {
+        value = (value + delta).clamp(min, max);
+      } else {
+        value = (value - delta).clamp(min, max);
+      }
+      mouseEvent.stopPropagation();
+      return;
+    }
+
+    if (mouseEvent.type != TuiMouseEventType.down) {
+      return;
+    }
+    final bounds = layoutBounds;
+    if (bounds == null) {
+      return;
+    }
+    if (vertical) {
+      if (bounds.height <= 1) {
+        value = min;
+      } else {
+        final localY = (mouseEvent.y - bounds.y).clamp(0, bounds.height - 1);
+        final ratio = (bounds.height - 1 - localY) / (bounds.height - 1);
+        value = (min + (max - min) * ratio).clamp(min, max);
+      }
+    } else {
+      if (bounds.width <= 1) {
+        value = min;
+      } else {
+        final localX = (mouseEvent.x - bounds.x).clamp(0, bounds.width - 1);
+        final ratio = localX / (bounds.width - 1);
+        value = (min + (max - min) * ratio).clamp(min, max);
+      }
+    }
+    mouseEvent.stopPropagation();
   }
 }

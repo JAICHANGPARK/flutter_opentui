@@ -284,6 +284,7 @@ class BoxRenderable extends Renderable {
     this.align = TuiAlign.stretch,
     this.border = false,
     this.title,
+    this.titleAlignment = TuiTitleAlignment.left,
     this.padding = 0,
     this.paddingX,
     this.paddingY,
@@ -293,6 +294,8 @@ class BoxRenderable extends Renderable {
     this.paddingBottom,
     this.style = TuiStyle.plain,
     this.borderStyle = const TuiStyle(foreground: TuiColor.cyan),
+    this.borderPreset = TuiBorderPreset.single,
+    this.borderChars,
   }) : assert(padding >= 0),
        assert(paddingX == null || paddingX >= 0),
        assert(paddingY == null || paddingY >= 0),
@@ -305,8 +308,9 @@ class BoxRenderable extends Renderable {
   TuiWrap wrap;
   TuiJustify justify;
   TuiAlign align;
-  bool border;
+  Object border;
   String? title;
+  TuiTitleAlignment titleAlignment;
   int padding;
   int? paddingX;
   int? paddingY;
@@ -316,6 +320,8 @@ class BoxRenderable extends Renderable {
   int? paddingBottom;
   TuiStyle style;
   TuiStyle borderStyle;
+  TuiBorderPreset borderPreset;
+  TuiBorderChars? borderChars;
 
   @override
   TuiNode toNode() {
@@ -345,6 +351,7 @@ class BoxRenderable extends Renderable {
       align: align,
       border: border,
       title: title,
+      titleAlignment: titleAlignment,
       padding: padding,
       paddingX: paddingX,
       paddingY: paddingY,
@@ -354,6 +361,8 @@ class BoxRenderable extends Renderable {
       paddingBottom: paddingBottom,
       style: style,
       borderStyle: borderStyle,
+      borderPreset: borderPreset,
+      borderChars: borderChars,
     );
     attachChildren(node);
     return node;
@@ -412,10 +421,12 @@ class TextRenderable extends Renderable {
     super.flexGrow,
     required this.content,
     this.style = TuiStyle.plain,
+    this.selectable = true,
   });
 
   String content;
   TuiStyle style;
+  bool selectable;
 
   @override
   TuiNode toNode() {
@@ -441,7 +452,260 @@ class TextRenderable extends Renderable {
       flexGrow: flexGrow,
       text: content,
       style: style,
+      selectable: selectable,
     );
+  }
+}
+
+final class TextNodeRenderable extends TextRenderable {
+  TextNodeRenderable({
+    super.id,
+    super.width,
+    super.height,
+    super.widthPercent,
+    super.heightPercent,
+    super.minWidth,
+    super.maxWidth,
+    super.minHeight,
+    super.maxHeight,
+    super.margin,
+    super.marginX,
+    super.marginY,
+    super.marginLeft,
+    super.marginTop,
+    super.marginRight,
+    super.marginBottom,
+    super.left,
+    super.top,
+    super.flexGrow,
+    required super.content,
+    super.selectable,
+    super.style,
+  });
+
+  static TextNodeRenderable fromString(
+    String text, {
+    String? id,
+    TuiStyle style = TuiStyle.plain,
+    bool selectable = true,
+  }) {
+    return TextNodeRenderable(
+      id: id,
+      content: text,
+      style: style,
+      selectable: selectable,
+    );
+  }
+
+  void appendText(String text) {
+    if (text.isEmpty) {
+      return;
+    }
+    content = '$content$text';
+    markDirty();
+  }
+
+  void clearText() {
+    if (content.isEmpty) {
+      return;
+    }
+    content = '';
+    markDirty();
+  }
+}
+
+enum TuiTextBufferWrapMode { none, char, word }
+
+final class TextBufferRenderable extends TextRenderable {
+  TextBufferRenderable({
+    super.id,
+    super.width,
+    super.height,
+    super.widthPercent,
+    super.heightPercent,
+    super.minWidth,
+    super.maxWidth,
+    super.minHeight,
+    super.maxHeight,
+    super.margin,
+    super.marginX,
+    super.marginY,
+    super.marginLeft,
+    super.marginTop,
+    super.marginRight,
+    super.marginBottom,
+    super.left,
+    super.top,
+    super.flexGrow,
+    String text = '',
+    super.selectable,
+    super.style,
+    this.wrapMode = TuiTextBufferWrapMode.word,
+    this.truncate = false,
+    this.tabIndicator,
+    this.tabIndicatorColor,
+    this.scrollX = 0,
+    this.scrollY = 0,
+  }) : super(content: text);
+
+  TuiTextBufferWrapMode wrapMode;
+  bool truncate;
+  Object? tabIndicator;
+  TuiColor? tabIndicatorColor;
+  int scrollX;
+  int scrollY;
+
+  String get text => content;
+
+  set text(String value) {
+    if (content == value) {
+      return;
+    }
+    content = value;
+    markDirty();
+  }
+
+  String get plainText => content;
+
+  int get textLength => content.runes.length;
+
+  void setText(String value) {
+    text = value;
+  }
+
+  void appendText(String value) {
+    if (value.isEmpty) {
+      return;
+    }
+    content = '$content$value';
+    markDirty();
+  }
+
+  void clearText() {
+    if (content.isEmpty) {
+      return;
+    }
+    content = '';
+    markDirty();
+  }
+
+  @override
+  TuiNode toNode() {
+    var lines = content.split('\n');
+
+    final safeScrollY = scrollY < 0 ? 0 : scrollY;
+    if (safeScrollY > 0 && safeScrollY < lines.length) {
+      lines = lines.skip(safeScrollY).toList(growable: false);
+    } else if (safeScrollY >= lines.length) {
+      lines = const <String>[];
+    }
+
+    final safeScrollX = scrollX < 0 ? 0 : scrollX;
+    if (safeScrollX > 0) {
+      lines = lines
+          .map(
+            (line) =>
+                safeScrollX >= line.length ? '' : line.substring(safeScrollX),
+          )
+          .toList(growable: false);
+    }
+
+    final maxWidth = width;
+    if (maxWidth != null && maxWidth > 0) {
+      if (wrapMode == TuiTextBufferWrapMode.char) {
+        lines = _charWrap(lines, maxWidth);
+      } else if (wrapMode == TuiTextBufferWrapMode.word) {
+        lines = _wordWrap(lines, maxWidth);
+      }
+      if (truncate) {
+        lines = lines
+            .map((line) => _truncateLine(line, maxWidth))
+            .toList(growable: false);
+      }
+    }
+
+    final rendered = lines.join('\n');
+    return TuiText(
+      id: id,
+      width: width,
+      height: height,
+      widthPercent: widthPercent,
+      heightPercent: heightPercent,
+      minWidth: minWidth,
+      maxWidth: maxWidth,
+      minHeight: minHeight,
+      maxHeight: maxHeight,
+      margin: margin,
+      marginX: marginX,
+      marginY: marginY,
+      marginLeft: marginLeft,
+      marginTop: marginTop,
+      marginRight: marginRight,
+      marginBottom: marginBottom,
+      left: left,
+      top: top,
+      flexGrow: flexGrow,
+      text: rendered,
+      style: style,
+      selectable: selectable,
+    );
+  }
+
+  List<String> _charWrap(List<String> lines, int width) {
+    if (width <= 0) {
+      return const <String>[];
+    }
+    final wrapped = <String>[];
+    for (final line in lines) {
+      if (line.isEmpty) {
+        wrapped.add('');
+        continue;
+      }
+      var index = 0;
+      while (index < line.length) {
+        final end = (index + width).clamp(0, line.length).toInt();
+        wrapped.add(line.substring(index, end));
+        index = end;
+      }
+    }
+    return wrapped;
+  }
+
+  List<String> _wordWrap(List<String> lines, int width) {
+    if (width <= 0) {
+      return const <String>[];
+    }
+    final wrapped = <String>[];
+    for (final source in lines) {
+      if (source.isEmpty) {
+        wrapped.add('');
+        continue;
+      }
+      var line = source.trimRight();
+      while (line.length > width) {
+        final chunk = line.substring(0, width);
+        final split = chunk.lastIndexOf(RegExp(r'\s'));
+        if (split <= 0) {
+          wrapped.add(chunk);
+          line = line.substring(width).trimLeft();
+          continue;
+        }
+        wrapped.add(chunk.substring(0, split));
+        line = line.substring(split + 1).trimLeft();
+      }
+      wrapped.add(line);
+    }
+    return wrapped;
+  }
+
+  String _truncateLine(String line, int width) {
+    if (line.length <= width) {
+      return line;
+    }
+    if (width <= 3) {
+      return line.substring(0, width);
+    }
+    return '${line.substring(0, width - 3)}...';
   }
 }
 
@@ -725,6 +989,7 @@ final class ASCIIFontRenderable extends TextRenderable {
     super.top,
     super.flexGrow,
     required super.content,
+    super.selectable,
     super.style,
     this.letterSpacing = 1,
   });
@@ -756,6 +1021,7 @@ final class ASCIIFontRenderable extends TextRenderable {
       text: content,
       style: style,
       letterSpacing: letterSpacing,
+      selectable: selectable,
     );
   }
 }
@@ -1014,6 +1280,7 @@ class ScrollBoxRenderable extends BoxRenderable {
     super.align,
     super.border,
     super.title,
+    super.titleAlignment,
     super.padding,
     super.paddingX,
     super.paddingY,
@@ -1023,6 +1290,8 @@ class ScrollBoxRenderable extends BoxRenderable {
     super.paddingBottom,
     super.style,
     super.borderStyle,
+    super.borderPreset,
+    super.borderChars,
     this.scrollOffset = 0,
     this.scrollStep = 1,
     this.fastScrollStep = 5,
@@ -1060,6 +1329,7 @@ class ScrollBoxRenderable extends BoxRenderable {
       align: align,
       border: border,
       title: title,
+      titleAlignment: titleAlignment,
       padding: padding,
       paddingX: paddingX,
       paddingY: paddingY,
@@ -1069,6 +1339,8 @@ class ScrollBoxRenderable extends BoxRenderable {
       paddingBottom: paddingBottom,
       style: style,
       borderStyle: borderStyle,
+      borderPreset: borderPreset,
+      borderChars: borderChars,
       scrollOffset: scrollOffset,
       scrollStep: scrollStep,
       fastScrollStep: fastScrollStep,

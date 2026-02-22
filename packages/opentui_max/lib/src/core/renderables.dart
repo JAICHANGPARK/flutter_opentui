@@ -143,17 +143,23 @@ final class BoxRenderable extends Renderable {
     this.layoutDirection = TuiLayoutDirection.column,
     this.border = false,
     this.title,
+    this.titleAlignment = TuiTitleAlignment.left,
     this.padding = 0,
     this.style = TuiStyle.plain,
     this.borderStyle = const TuiStyle(foreground: TuiColor.cyan),
+    this.borderPreset = TuiBorderPreset.single,
+    this.borderChars,
   });
 
   TuiLayoutDirection layoutDirection;
-  bool border;
+  Object border;
   String? title;
+  TuiTitleAlignment titleAlignment;
   int padding;
   TuiStyle style;
   TuiStyle borderStyle;
+  TuiBorderPreset borderPreset;
+  TuiBorderChars? borderChars;
 
   @override
   TuiNode toNode() {
@@ -166,9 +172,12 @@ final class BoxRenderable extends Renderable {
       layoutDirection: layoutDirection,
       border: border,
       title: title,
+      titleAlignment: titleAlignment,
       padding: padding,
       style: style,
       borderStyle: borderStyle,
+      borderPreset: borderPreset,
+      borderChars: borderChars,
     );
     attachChildren(node);
     return node;
@@ -269,9 +278,12 @@ final class ScrollBoxRenderable extends BoxRenderable {
     super.layoutDirection,
     super.border,
     super.title,
+    super.titleAlignment,
     super.padding,
     super.style,
     super.borderStyle,
+    super.borderPreset,
+    super.borderChars,
     this.scrollOffset = 0,
   });
 

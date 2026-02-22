@@ -30,17 +30,49 @@ void main() {
 
       expect(engine.focusedNode, same(textInput));
 
-      input.addKey(const TuiKeyEvent.character('a'));
+      input.addKey(TuiKeyEvent.character('a'));
       await Future<void>.delayed(Duration.zero);
       expect(textInput.value, 'a');
 
-      input.addKey(const TuiKeyEvent.special(TuiSpecialKey.tab));
+      input.addKey(TuiKeyEvent.special(TuiSpecialKey.tab));
       await Future<void>.delayed(Duration.zero);
       expect(engine.focusedNode, same(select));
 
-      input.addKey(const TuiKeyEvent.special(TuiSpecialKey.arrowDown));
+      input.addKey(TuiKeyEvent.special(TuiSpecialKey.arrowDown));
       await Future<void>.delayed(Duration.zero);
       expect(select.selectedIndex, 1);
+
+      await engine.dispose();
+      await input.dispose();
+    });
+
+    test('tab default focus move can be prevented by event flag', () async {
+      final input = _FakeInput();
+      final output = _MemoryOutput();
+      final engine = TuiEngine(
+        inputSource: input,
+        outputSink: output,
+        viewportWidth: 30,
+        viewportHeight: 8,
+      );
+
+      final first = TuiInput(id: 'first');
+      final second = TuiInput(id: 'second');
+      final root =
+          TuiBox(id: 'root', layoutDirection: TuiLayoutDirection.column)
+            ..add(first)
+            ..add(second);
+
+      engine.mount(root);
+      engine.render();
+      expect(engine.focusedNode, same(first));
+
+      final tab = TuiKeyEvent.special(TuiSpecialKey.tab);
+      tab.preventDefault();
+      input.addKey(tab);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(engine.focusedNode, same(first));
 
       await engine.dispose();
       await input.dispose();
@@ -51,11 +83,16 @@ void main() {
 final class _FakeInput implements TuiInputSource {
   final StreamController<TuiKeyEvent> _keyController =
       StreamController<TuiKeyEvent>.broadcast();
+  final StreamController<TuiMouseEvent> _mouseController =
+      StreamController<TuiMouseEvent>.broadcast();
   final StreamController<TuiResizeEvent> _resizeController =
       StreamController<TuiResizeEvent>.broadcast();
 
   @override
   Stream<TuiKeyEvent> get keyEvents => _keyController.stream;
+
+  @override
+  Stream<TuiMouseEvent> get mouseEvents => _mouseController.stream;
 
   @override
   Stream<TuiResizeEvent> get resizeEvents => _resizeController.stream;
@@ -66,6 +103,7 @@ final class _FakeInput implements TuiInputSource {
 
   Future<void> dispose() async {
     await _keyController.close();
+    await _mouseController.close();
     await _resizeController.close();
   }
 }

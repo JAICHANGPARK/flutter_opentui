@@ -9,6 +9,8 @@ void main() {
       final components = <BaseRenderable>[
         Box(id: 'box'),
         Text(id: 'text', content: 'text'),
+        TextNode(id: 'text-node', text: 'node'),
+        TextBuffer(id: 'text-buffer', text: 'buffer'),
         Input(id: 'input'),
         Select(id: 'select', options: const <String>['one']),
         TabSelect(id: 'tabs', options: const <String>['A', 'B']),
@@ -31,21 +33,165 @@ void main() {
 
       expect(nodes[0], isA<TuiBox>());
       expect(nodes[1], isA<TuiText>());
-      expect(nodes[2], isA<TuiInput>());
-      expect(nodes[3], isA<TuiSelect>());
-      expect(nodes[4], isA<TuiTabSelect>());
-      expect(nodes[5], isA<TuiAsciiFont>());
-      expect(nodes[6], isA<TuiFrameBufferNode>());
-      expect(nodes[7], isA<TuiMarkdown>());
-      expect(nodes[8], isA<TuiCode>());
-      expect(nodes[9], isA<TuiDiff>());
-      expect(nodes[10], isA<TuiLineNumber>());
-      expect(nodes[11], isA<TuiScrollBox>());
-      expect(nodes[12], isA<TuiScrollbar>());
-      expect(nodes[13], isA<TuiScrollbar>());
-      expect(nodes[14], isA<TuiSlider>());
-      expect(nodes[15], isA<TuiTextarea>());
+      expect(nodes[2], isA<TuiText>());
+      expect(nodes[3], isA<TuiText>());
+      expect(nodes[4], isA<TuiInput>());
+      expect(nodes[5], isA<TuiSelect>());
+      expect(nodes[6], isA<TuiTabSelect>());
+      expect(nodes[7], isA<TuiAsciiFont>());
+      expect(nodes[8], isA<TuiFrameBufferNode>());
+      expect(nodes[9], isA<TuiMarkdown>());
+      expect(nodes[10], isA<TuiCode>());
+      expect(nodes[11], isA<TuiDiff>());
+      expect(nodes[12], isA<TuiLineNumber>());
+      expect(nodes[13], isA<TuiScrollBox>());
+      expect(nodes[14], isA<TuiScrollbar>());
+      expect(nodes[15], isA<TuiScrollbar>());
+      expect(nodes[16], isA<TuiSlider>());
+      expect(nodes[17], isA<TuiTextarea>());
     });
+
+    test(
+      'box border presets and custom border characters render correctly',
+      () {
+        final engine = TuiEngine(
+          inputSource: MemoryInputSource(),
+          outputSink: MemoryOutputSink(),
+          viewportWidth: 6,
+          viewportHeight: 4,
+        );
+
+        engine.mount(
+          TuiBox(
+            id: 'double-border',
+            width: 6,
+            height: 4,
+            border: true,
+            borderPreset: TuiBorderPreset.double,
+          ),
+        );
+        engine.render();
+
+        final doubleFrame = engine.lastFrame!;
+        expect(doubleFrame.cellAt(0, 0).char, '╔');
+        expect(doubleFrame.cellAt(5, 0).char, '╗');
+        expect(doubleFrame.cellAt(0, 3).char, '╚');
+        expect(doubleFrame.cellAt(5, 3).char, '╝');
+
+        engine.mount(
+          TuiBox(
+            id: 'custom-border',
+            width: 6,
+            height: 4,
+            border: true,
+            borderChars: const TuiBorderChars(
+              topLeft: '◤',
+              topRight: '◥',
+              bottomLeft: '◣',
+              bottomRight: '◢',
+              horizontal: '═',
+              vertical: '║',
+              topT: '╦',
+              bottomT: '╩',
+              leftT: '╠',
+              rightT: '╣',
+              cross: '╬',
+            ),
+          ),
+        );
+        engine.render();
+
+        final customFrame = engine.lastFrame!;
+        expect(customFrame.cellAt(0, 0).char, '◤');
+        expect(customFrame.cellAt(5, 0).char, '◥');
+        expect(customFrame.cellAt(0, 3).char, '◣');
+        expect(customFrame.cellAt(5, 3).char, '◢');
+        expect(customFrame.cellAt(1, 0).char, '═');
+        expect(customFrame.cellAt(0, 1).char, '║');
+      },
+    );
+
+    test('box supports side-only borders and title alignment', () {
+      final engine = TuiEngine(
+        inputSource: MemoryInputSource(),
+        outputSink: MemoryOutputSink(),
+        viewportWidth: 8,
+        viewportHeight: 4,
+      );
+
+      engine.mount(
+        TuiBox(
+          id: 'top-bottom',
+          width: 8,
+          height: 3,
+          border: const <TuiBorderSide>[
+            TuiBorderSide.top,
+            TuiBorderSide.bottom,
+          ],
+          title: 'TT',
+          titleAlignment: TuiTitleAlignment.center,
+        ),
+      );
+      engine.render();
+
+      final horizontalFrame = engine.lastFrame!;
+      expect(horizontalFrame.cellAt(0, 0).char, '─');
+      expect(horizontalFrame.cellAt(0, 1).char, ' ');
+      expect(horizontalFrame.cellAt(3, 0).char, 'T');
+
+      engine.mount(
+        TuiBox(
+          id: 'left-only',
+          width: 4,
+          height: 3,
+          border: const <TuiBorderSide>[TuiBorderSide.left],
+        ),
+      );
+      engine.render();
+
+      final leftOnlyFrame = engine.lastFrame!;
+      expect(leftOnlyFrame.cellAt(0, 0).char, '│');
+      expect(leftOnlyFrame.cellAt(0, 1).char, '│');
+      expect(leftOnlyFrame.cellAt(1, 1).char, ' ');
+    });
+
+    test(
+      'input/select/scrollbox support home/end/page/delete special keys',
+      () {
+        final input = TuiInput(id: 'input', value: 'abcd');
+        input.onKey(TuiKeyEvent.special(TuiSpecialKey.home));
+        input.onKey(TuiKeyEvent.special(TuiSpecialKey.delete));
+        expect(input.value, 'bcd');
+        expect(input.cursorPosition, 0);
+        input.onKey(TuiKeyEvent.special(TuiSpecialKey.end));
+        expect(input.cursorPosition, 3);
+
+        final select = TuiSelect(
+          id: 'select',
+          options: const <String>['one', 'two', 'three'],
+          selectedIndex: 1,
+        );
+        select.onKey(TuiKeyEvent.special(TuiSpecialKey.home));
+        expect(select.selectedIndex, 0);
+        select.onKey(TuiKeyEvent.special(TuiSpecialKey.pageDown));
+        expect(select.selectedIndex, 2);
+
+        final scrollBox =
+            TuiScrollBox(id: 'scrollbox', scrollStep: 1, fastScrollStep: 2)
+              ..add(TuiText(id: 'a', text: 'a'))
+              ..add(TuiText(id: 'b', text: 'b'))
+              ..add(TuiText(id: 'c', text: 'c'))
+              ..add(TuiText(id: 'd', text: 'd'));
+        scrollBox.onKey(TuiKeyEvent.special(TuiSpecialKey.end));
+        expect(scrollBox.scrollOffset, 3);
+        scrollBox.onKey(TuiKeyEvent.special(TuiSpecialKey.home));
+        expect(scrollBox.scrollOffset, 0);
+        scrollBox.onKey(TuiKeyEvent.special(TuiSpecialKey.pageDown));
+        expect(scrollBox.scrollOffset, 2);
+        scrollBox.onKey(TuiKeyEvent.special(TuiSpecialKey.pageUp));
+        expect(scrollBox.scrollOffset, 0);
+      },
+    );
 
     test('scrollbox supports focusable keyboard scrolling with clamping', () {
       final scrollBox =
@@ -57,17 +203,15 @@ void main() {
 
       expect(scrollBox.focusable, isTrue);
 
-      scrollBox.onKey(const TuiKeyEvent.special(TuiSpecialKey.arrowDown));
+      scrollBox.onKey(TuiKeyEvent.special(TuiSpecialKey.arrowDown));
       expect(scrollBox.scrollOffset, 1);
 
       scrollBox.onKey(
-        const TuiKeyEvent.special(TuiSpecialKey.arrowDown, shift: true),
+        TuiKeyEvent.special(TuiSpecialKey.arrowDown, shift: true),
       );
       expect(scrollBox.scrollOffset, 3);
 
-      scrollBox.onKey(
-        const TuiKeyEvent.special(TuiSpecialKey.arrowUp, shift: true),
-      );
+      scrollBox.onKey(TuiKeyEvent.special(TuiSpecialKey.arrowUp, shift: true));
       expect(scrollBox.scrollOffset, 0);
     });
 
@@ -112,21 +256,21 @@ void main() {
         fastStep: 0.4,
       );
 
-      scrollbar.onKey(const TuiKeyEvent.special(TuiSpecialKey.arrowRight));
+      scrollbar.onKey(TuiKeyEvent.special(TuiSpecialKey.arrowRight));
       expect(scrollbar.value, closeTo(0.4, 0.0001));
 
       scrollbar.onKey(
-        const TuiKeyEvent.special(TuiSpecialKey.arrowRight, shift: true),
+        TuiKeyEvent.special(TuiSpecialKey.arrowRight, shift: true),
       );
       expect(scrollbar.value, closeTo(0.8, 0.0001));
 
       scrollbar.onKey(
-        const TuiKeyEvent.special(TuiSpecialKey.arrowRight, shift: true),
+        TuiKeyEvent.special(TuiSpecialKey.arrowRight, shift: true),
       );
       expect(scrollbar.value, 1.0);
 
       scrollbar.onKey(
-        const TuiKeyEvent.special(TuiSpecialKey.arrowLeft, shift: true),
+        TuiKeyEvent.special(TuiSpecialKey.arrowLeft, shift: true),
       );
       expect(scrollbar.value, closeTo(0.6, 0.0001));
     });
@@ -157,8 +301,8 @@ void main() {
       expect(engine.lastFrame!.cellAt(0, 0).char, 't');
       expect(engine.lastFrame!.cellAt(0, 1).char, 'f');
 
-      textarea.onKey(const TuiKeyEvent.special(TuiSpecialKey.arrowUp));
-      textarea.onKey(const TuiKeyEvent.special(TuiSpecialKey.arrowUp));
+      textarea.onKey(TuiKeyEvent.special(TuiSpecialKey.arrowUp));
+      textarea.onKey(TuiKeyEvent.special(TuiSpecialKey.arrowUp));
       engine.render();
 
       expect(textarea.scrollTop, 1);

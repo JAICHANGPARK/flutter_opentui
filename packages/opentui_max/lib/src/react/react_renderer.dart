@@ -37,8 +37,9 @@ final class OpenTuiReactRenderer {
           left: _intOrNull(props['left']),
           top: _intOrNull(props['top']),
           layoutDirection: direction,
-          border: _boolOr(props['border'], false),
+          border: _borderOr(props['border']),
           title: props['title'] as String?,
+          titleAlignment: _titleAlignmentOr(props['titleAlignment']),
           padding: _intOr(props['padding'], 0),
         );
         for (final child in element.children) {
@@ -122,17 +123,48 @@ final class OpenTuiReactRenderer {
     return null;
   }
 
-  bool _boolOr(Object? value, bool fallback) {
-    if (value is bool) {
-      return value;
-    }
-    return fallback;
-  }
-
   String _stringOr(Object? value, String fallback) {
     if (value is String) {
       return value;
     }
     return fallback;
+  }
+
+  Object _borderOr(Object? value) {
+    if (value is bool) {
+      return value;
+    }
+    if (value is List) {
+      final sides = <TuiBorderSide>[];
+      for (final entry in value) {
+        switch (entry) {
+          case 'top':
+            sides.add(TuiBorderSide.top);
+            break;
+          case 'right':
+            sides.add(TuiBorderSide.right);
+            break;
+          case 'bottom':
+            sides.add(TuiBorderSide.bottom);
+            break;
+          case 'left':
+            sides.add(TuiBorderSide.left);
+            break;
+        }
+      }
+      return sides;
+    }
+    return false;
+  }
+
+  TuiTitleAlignment _titleAlignmentOr(Object? value) {
+    switch (value) {
+      case 'center':
+        return TuiTitleAlignment.center;
+      case 'right':
+        return TuiTitleAlignment.right;
+      default:
+        return TuiTitleAlignment.left;
+    }
   }
 }

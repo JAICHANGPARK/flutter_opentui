@@ -136,7 +136,7 @@ void main() {
         renderer.console.log('line-5');
         renderer.render();
 
-        input.emitKey(const TuiKeyEvent.character('`'));
+        input.emitKey(TuiKeyEvent.character('`'));
         await Future<void>.delayed(Duration.zero);
         expect(renderer.console.isOpen, isTrue);
         expect(renderer.console.isFocused, isTrue);
@@ -144,26 +144,26 @@ void main() {
         renderer.render();
         expect(_frameAsText(renderer.frame!), contains('line-5'));
 
-        input.emitKey(const TuiKeyEvent.special(TuiSpecialKey.arrowUp));
+        input.emitKey(TuiKeyEvent.special(TuiSpecialKey.arrowUp));
         await Future<void>.delayed(Duration.zero);
         expect(renderer.console.scrollOffset, 1);
 
-        input.emitKey(const TuiKeyEvent.special(TuiSpecialKey.escape));
+        input.emitKey(TuiKeyEvent.special(TuiSpecialKey.escape));
         await Future<void>.delayed(Duration.zero);
         expect(renderer.console.isFocused, isFalse);
         expect(renderer.console.isOpen, isTrue);
 
-        input.emitKey(const TuiKeyEvent.character('`'));
+        input.emitKey(TuiKeyEvent.character('`'));
         await Future<void>.delayed(Duration.zero);
         expect(renderer.console.isOpen, isTrue);
         expect(renderer.console.isFocused, isTrue);
 
         final beforeSize = renderer.console.sizePercent;
-        input.emitKey(const TuiKeyEvent.character('+'));
+        input.emitKey(TuiKeyEvent.character('+'));
         await Future<void>.delayed(Duration.zero);
         expect(renderer.console.sizePercent, greaterThan(beforeSize));
 
-        input.emitKey(const TuiKeyEvent.character('`'));
+        input.emitKey(TuiKeyEvent.character('`'));
         await Future<void>.delayed(Duration.zero);
         expect(renderer.console.isOpen, isFalse);
         expect(renderer.console.isFocused, isFalse);

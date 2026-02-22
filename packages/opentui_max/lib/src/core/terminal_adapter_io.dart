@@ -106,6 +106,23 @@ final class TerminalAdapter implements TuiInputSource, TuiOutputSink {
     var index = 0;
 
     while (index < _pendingInput.length) {
+      final modifiedCsi = _matchModifiedCsi(index);
+      if (modifiedCsi != null) {
+        final sequence = modifiedCsi.$1;
+        final special = modifiedCsi.$2;
+        final modifiers = modifiedCsi.$3;
+        _keyController.add(
+          TuiKeyEvent.special(
+            special,
+            ctrl: modifiers.ctrl,
+            alt: modifiers.alt,
+            shift: modifiers.shift,
+          ),
+        );
+        index += sequence.length;
+        continue;
+      }
+
       if (_pendingInput.startsWith('\x1b[A', index)) {
         _keyController.add(const TuiKeyEvent.special(TuiSpecialKey.arrowUp));
         index += 3;
@@ -123,6 +140,104 @@ final class TerminalAdapter implements TuiInputSource, TuiOutputSink {
       }
       if (_pendingInput.startsWith('\x1b[D', index)) {
         _keyController.add(const TuiKeyEvent.special(TuiSpecialKey.arrowLeft));
+        index += 3;
+        continue;
+      }
+      if (_pendingInput.startsWith('\x1bOA', index)) {
+        _keyController.add(const TuiKeyEvent.special(TuiSpecialKey.arrowUp));
+        index += 3;
+        continue;
+      }
+      if (_pendingInput.startsWith('\x1bOB', index)) {
+        _keyController.add(const TuiKeyEvent.special(TuiSpecialKey.arrowDown));
+        index += 3;
+        continue;
+      }
+      if (_pendingInput.startsWith('\x1bOC', index)) {
+        _keyController.add(const TuiKeyEvent.special(TuiSpecialKey.arrowRight));
+        index += 3;
+        continue;
+      }
+      if (_pendingInput.startsWith('\x1bOD', index)) {
+        _keyController.add(const TuiKeyEvent.special(TuiSpecialKey.arrowLeft));
+        index += 3;
+        continue;
+      }
+      if (_pendingInput.startsWith('\x1b[H', index) ||
+          _pendingInput.startsWith('\x1bOH', index) ||
+          _pendingInput.startsWith('\x1b[1~', index) ||
+          _pendingInput.startsWith('\x1b[7~', index)) {
+        _keyController.add(const TuiKeyEvent.special(TuiSpecialKey.home));
+        if (_pendingInput.startsWith('\x1b[H', index) ||
+            _pendingInput.startsWith('\x1bOH', index)) {
+          index += 3;
+        } else {
+          index += 4;
+        }
+        continue;
+      }
+      if (_pendingInput.startsWith('\x1b[F', index) ||
+          _pendingInput.startsWith('\x1bOF', index) ||
+          _pendingInput.startsWith('\x1b[4~', index) ||
+          _pendingInput.startsWith('\x1b[8~', index)) {
+        _keyController.add(const TuiKeyEvent.special(TuiSpecialKey.end));
+        if (_pendingInput.startsWith('\x1b[F', index) ||
+            _pendingInput.startsWith('\x1bOF', index)) {
+          index += 3;
+        } else {
+          index += 4;
+        }
+        continue;
+      }
+      if (_pendingInput.startsWith('\x1b[3~', index)) {
+        _keyController.add(const TuiKeyEvent.special(TuiSpecialKey.delete));
+        index += 4;
+        continue;
+      }
+      if (_pendingInput.startsWith('\x1b[5~', index) ||
+          _pendingInput.startsWith('\x1b[[5~', index)) {
+        _keyController.add(const TuiKeyEvent.special(TuiSpecialKey.pageUp));
+        index += _pendingInput.startsWith('\x1b[5~', index) ? 4 : 5;
+        continue;
+      }
+      if (_pendingInput.startsWith('\x1b[6~', index) ||
+          _pendingInput.startsWith('\x1b[[6~', index)) {
+        _keyController.add(const TuiKeyEvent.special(TuiSpecialKey.pageDown));
+        index += _pendingInput.startsWith('\x1b[6~', index) ? 4 : 5;
+        continue;
+      }
+      if (_pendingInput.startsWith('\x1b[Z', index)) {
+        _keyController.add(
+          const TuiKeyEvent.special(TuiSpecialKey.tab, shift: true),
+        );
+        index += 3;
+        continue;
+      }
+      if (_pendingInput.startsWith('\x1b[a', index)) {
+        _keyController.add(
+          const TuiKeyEvent.special(TuiSpecialKey.arrowUp, shift: true),
+        );
+        index += 3;
+        continue;
+      }
+      if (_pendingInput.startsWith('\x1b[b', index)) {
+        _keyController.add(
+          const TuiKeyEvent.special(TuiSpecialKey.arrowDown, shift: true),
+        );
+        index += 3;
+        continue;
+      }
+      if (_pendingInput.startsWith('\x1b[c', index)) {
+        _keyController.add(
+          const TuiKeyEvent.special(TuiSpecialKey.arrowRight, shift: true),
+        );
+        index += 3;
+        continue;
+      }
+      if (_pendingInput.startsWith('\x1b[d', index)) {
+        _keyController.add(
+          const TuiKeyEvent.special(TuiSpecialKey.arrowLeft, shift: true),
+        );
         index += 3;
         continue;
       }
@@ -166,6 +281,83 @@ final class TerminalAdapter implements TuiInputSource, TuiOutputSink {
     }
 
     _pendingInput = _pendingInput.substring(index);
+  }
+
+  ({bool ctrl, bool alt, bool shift}) _decodeModifiers(int encodedModifier) {
+    final modifier = encodedModifier - 1;
+    final shift = (modifier & 1) != 0;
+    final alt = (modifier & 2) != 0;
+    final ctrl = (modifier & 4) != 0;
+    return (ctrl: ctrl, alt: alt, shift: shift);
+  }
+
+  (String, TuiSpecialKey, ({bool ctrl, bool alt, bool shift}))?
+  _matchModifiedCsi(int index) {
+    final remaining = _pendingInput.substring(index);
+    final match = RegExp(
+      r'^\x1b\[(\d+);(\d+)([ABCDHF~])',
+    ).matchAsPrefix(remaining);
+    if (match == null) {
+      return null;
+    }
+
+    final primary = match.group(1)!;
+    final modifierCode = int.tryParse(match.group(2) ?? '');
+    final suffix = match.group(3)!;
+    if (modifierCode == null) {
+      return null;
+    }
+
+    final special = _mapCsiSpecial(primary: primary, suffix: suffix);
+    if (special == null) {
+      return null;
+    }
+
+    final sequence = match.group(0)!;
+    return (sequence, special, _decodeModifiers(modifierCode));
+  }
+
+  TuiSpecialKey? _mapCsiSpecial({
+    required String primary,
+    required String suffix,
+  }) {
+    if (suffix == 'A') {
+      return TuiSpecialKey.arrowUp;
+    }
+    if (suffix == 'B') {
+      return TuiSpecialKey.arrowDown;
+    }
+    if (suffix == 'C') {
+      return TuiSpecialKey.arrowRight;
+    }
+    if (suffix == 'D') {
+      return TuiSpecialKey.arrowLeft;
+    }
+    if (suffix == 'H') {
+      return TuiSpecialKey.home;
+    }
+    if (suffix == 'F') {
+      return TuiSpecialKey.end;
+    }
+    if (suffix != '~') {
+      return null;
+    }
+    switch (primary) {
+      case '1':
+      case '7':
+        return TuiSpecialKey.home;
+      case '3':
+        return TuiSpecialKey.delete;
+      case '4':
+      case '8':
+        return TuiSpecialKey.end;
+      case '5':
+        return TuiSpecialKey.pageUp;
+      case '6':
+        return TuiSpecialKey.pageDown;
+      default:
+        return null;
+    }
   }
 
   Future<void> _flushIfPossible() async {

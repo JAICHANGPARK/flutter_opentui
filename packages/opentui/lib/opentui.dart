@@ -8,4 +8,5 @@ export 'src/events.dart';
 export 'src/frame.dart';
 export 'src/node.dart';
 export 'src/renderables.dart';
+export 'src/selection.dart';
 export 'src/terminal_adapter.dart';

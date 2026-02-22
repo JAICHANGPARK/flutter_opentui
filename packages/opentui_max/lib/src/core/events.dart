@@ -6,11 +6,16 @@ enum TuiSpecialKey {
   tab,
   enter,
   backspace,
+  delete,
   escape,
   arrowUp,
   arrowDown,
   arrowLeft,
   arrowRight,
+  home,
+  end,
+  pageUp,
+  pageDown,
   ctrlC,
 }
 
